@@ -1,4 +1,17 @@
+"""
+Solution to Day 5 of Advent of Code, 2020
+"""
+
 from more_itertools import pairwise
+
+# Mapping from letters in seat specs to the binary
+# value each represents.
+CODE_MAPPING = {
+    "F": "0",
+    "B": "1",
+    "L": "0",
+    "R": "1",
+}
 
 
 def decode_seat(seat_spec: str) -> int:
@@ -8,12 +21,7 @@ def decode_seat(seat_spec: str) -> int:
     The specs are equivalent to binary numbers, with B and R being
     1 and F and L being 0.
     """
-    binary_str = (
-        seat_spec.replace("F", "0")
-        .replace("L", "0")
-        .replace("B", "1")
-        .replace("R", "1")
-    )
+    binary_str = "".join(CODE_MAPPING[c] for c in seat_spec)
     return int(binary_str, 2)
 
 
@@ -21,8 +29,8 @@ def get_seat_specs():
     """
     Returns all of the seat specs from all of the boarding passes.
     """
-    with open("input.txt") as f:
-        return list(f.read().splitlines(keepends=False))
+    with open("input.txt") as input_file:
+        return list(input_file.read().splitlines(keepends=False))
 
 
 def get_seat_ids():
