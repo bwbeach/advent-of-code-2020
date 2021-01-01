@@ -8,12 +8,6 @@ struct Input {
     buses_note: String,
 }
 
-// const INPUT: Input =
-//     Input {
-//         earliest: 1015292,
-//         buses_note: String::from(input_str), 
-//     };
-
 fn next_arrival_time(earliest: i32, bus_id: i32) -> i32 {
     (earliest + bus_id - 1) / bus_id * bus_id
 }
@@ -53,10 +47,10 @@ fn parse_bus(bus_str: &str, index: u64) -> Option<Bus> {
 /// vector of Bus specs.
 fn parse_buses(input: &str) -> Vec<Bus> {
     let strings: Vec<&str> = input.split(",").collect();
-    let count: u64 = strings.len() as u64;
+    let count = strings.len() as u64;
     let mut result: Vec<Bus> = vec![];
-    for i in 0..(count as usize) {
-        let maybe_bus = parse_bus(strings[i], i as u64);
+    for i in 0..count {
+        let maybe_bus = parse_bus(strings[i as usize], i);
         if maybe_bus.is_some() {
             result.push(maybe_bus.unwrap())
         }
