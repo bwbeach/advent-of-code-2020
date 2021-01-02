@@ -45,7 +45,7 @@ fn parse_mask(mask_str: &[u8]) -> Mask {
 }
 
 /// Applies a bitmask to a number
-fn apply_mask(n: u64, mask: &Mask) -> u64 {
+fn apply_mask_part1(n: u64, mask: &Mask) -> u64 {
     (n & mask.zeros) | mask.ones
 }
 
@@ -78,7 +78,7 @@ fn parse_input_line(s: &str) -> InputLine {
 
 /// Processes all of the lines of the input file, and returns the
 /// resulting memory.
-fn process_input() -> Memory {
+fn process_input_part1() -> Memory {
     let file = File::open("input.txt").unwrap();
     let reader = BufReader::new(file);
     let mut mask = parse_mask(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
@@ -90,7 +90,7 @@ fn process_input() -> Memory {
                 mask = m;
             },
             InputLine::Store{addr, value} => {
-                memory.insert(addr, apply_mask(value, &mask));
+                memory.insert(addr, apply_mask_part1(value, &mask));
             }
         }
     }
@@ -99,21 +99,21 @@ fn process_input() -> Memory {
 
 fn main() {
     assert_eq!(
-        apply_mask(
+        apply_mask_part1(
             0b000000000000000000000000000000001011, 
             &parse_mask(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X")
         ),
         0b000000000000000000000000000001001001
     );
     assert_eq!(
-        apply_mask(
+        apply_mask_part1(
             0b000000000000000000000000000001100101, 
             &parse_mask(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X")
         ),
         0b000000000000000000000000000001100101
     );
     assert_eq!(
-        apply_mask(
+        apply_mask_part1(
             0b000000000000000000000000000000000000, 
             &parse_mask(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X")
         ),
@@ -124,7 +124,8 @@ fn main() {
         InputLine::Store{addr:45, value:12345},
         parse_input_line("mem[45] = 12345")
     );
-    let memory = process_input();
+    let memory = process_input_part1();
     let part1_answer: u64 = memory.values().sum();
+    assert_eq!(12408060320841, part1_answer);
     println!("{:?}", part1_answer);
 }
