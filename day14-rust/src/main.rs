@@ -81,16 +81,16 @@ fn parse_input_line(s: &str) -> InputLine {
 fn process_input_part1() -> Memory {
     let file = File::open("input.txt").unwrap();
     let reader = BufReader::new(file);
-    let mut mask = parse_mask(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+    let mut mask: Option<Mask> = Option::None;
     let mut memory: Memory = HashMap::new();
     for line in reader.lines() { 
         let line_str = line.unwrap();
         match parse_input_line(&line_str) {
             InputLine::Mask(m) => {
-                mask = m;
+                mask = Option::Some(m);
             },
             InputLine::Store{addr, value} => {
-                memory.insert(addr, apply_mask_part1(value, &mask));
+                memory.insert(addr, apply_mask_part1(value, mask.as_ref().unwrap()));
             }
         }
     }
