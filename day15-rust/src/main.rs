@@ -16,14 +16,10 @@ fn get_nth_number(initial_seq: &[usize], target_turn: usize) -> usize {
     let mut current: usize = *initial_seq.last().unwrap();
     for turn in (initial_seq.len() + 1)..(target_turn + 1) {
         let prev = current;
-        match table.get(&current) {
-            Option::None => {
-                current = 0;
-            }
-            Option::Some(prev_turn) => {
-                current = (turn - 1) - prev_turn;
-            }
-        }
+        current = match table.get(&current) {
+            Option::None => 0,
+            Option::Some(prev_turn) => (turn - 1) - prev_turn
+        };
         table.insert(prev, turn - 1);
     }
     current
