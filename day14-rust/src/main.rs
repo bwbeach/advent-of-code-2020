@@ -6,15 +6,13 @@ use regex::Regex;
 
 type Memory = HashMap<u64, u64>;
 
-/// Holds the parsed value of a bitmask.
-#[derive(Debug)]
-#[derive(PartialEq)]
-struct Mask {
-    // The mask to OR with a number to set the 1 bits.
-    ones: u64,
+/// Sets the bit at 2^`i` in the number `n`.
+fn set_bit(n: u64, i: usize) -> u64 {
+    n | (1 << i)
+}
 
-    // The mast to AND with the number to clear the 0 bits.
-    zeros: u64,
+fn clear_bit(n: u64, i: usize) -> u64 {
+    n & !(1 << i)
 }
 
 /// Applies a bitmask to a number, following the rules int Part 1
@@ -24,9 +22,9 @@ fn apply_mask_part1(n: u64, mask: &str) -> u64 {
     for i in 0usize..36 {
         let c = bytes[35 - i];
         if c == b'0' {
-            result &= !(1 << i);
+            result = clear_bit(result, i)
         } else if c == b'1' {
-            result |= 1 << i;
+            result = set_bit(result, i)
         } else if c != b'X' {
             panic!();
         }
@@ -45,14 +43,13 @@ fn apply_mask_part2_helper(n: u64, mask: &str, index: usize) -> Vec<u64> {
         if c == b'0' {
             apply_mask_part2_helper(n, mask, index + 1)
         } else if c == b'1' {
-            let n_with_bit = n | (1 << (index as u64));
-            apply_mask_part2_helper(n_with_bit, mask, index + 1)
+            apply_mask_part2_helper(set_bit(n, index), mask, index + 1)
         } else if c == b'X' {
             let mut combined: Vec<u64> = Vec::new();
-            for x in apply_mask_part2_helper(n & !(1 << index), mask, index + 1) {
+            for x in apply_mask_part2_helper(clear_bit(n, index), mask, index + 1) {
                 combined.push(x);
             }
-            for x in apply_mask_part2_helper(n | (1 << index), mask, index + 1) {
+            for x in apply_mask_part2_helper(set_bit(n, index), mask, index + 1) {
                 combined.push(x);
             }
             combined
