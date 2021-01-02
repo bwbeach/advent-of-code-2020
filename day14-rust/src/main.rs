@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::fs::File;
+use std::path::Path;
 use regex::Regex;
 
 type Memory = HashMap<u64, u64>;
@@ -31,6 +32,40 @@ fn apply_mask_part1(n: u64, mask: &str) -> u64 {
         }
     };
     result
+}
+
+// Returns a list of the results of applying the mask starting at
+// bit index `index`.  All of the previous bits have already been
+// processed and the results are in `n`.
+fn apply_mask_part2_helper(n: u64, mask: &str, index: usize) -> Vec<u64> {
+    if index == 36 {
+        vec!(n)
+    } else {
+        let c = mask.as_bytes()[35 - index];
+        if c == b'0' {
+            apply_mask_part2_helper(n, mask, index + 1)
+        } else if c == b'1' {
+            let n_with_bit = n | (1 << (index as u64));
+            apply_mask_part2_helper(n_with_bit, mask, index + 1)
+        } else if c == b'X' {
+            let mut combined: Vec<u64> = Vec::new();
+            for x in apply_mask_part2_helper(n & !(1 << index), mask, index + 1) {
+                combined.push(x);
+            }
+            for x in apply_mask_part2_helper(n | (1 << index), mask, index + 1) {
+                combined.push(x);
+            }
+            combined
+        } else {
+            panic!();
+        }
+
+    }
+}
+
+/// Applies a bitmask to a number, following the rules int Part 1
+fn apply_mask_part2(n: u64, mask: &str) -> Vec<u64> {
+    apply_mask_part2_helper(n, mask, 0)
 }
 
 /// One line from the input file
@@ -81,6 +116,30 @@ fn process_input_part1() -> Memory {
     memory
 }
 
+/// Processes all of the lines of the input file, and returns the
+/// resulting memory.
+fn process_input_part2(path: &Path) -> u64 {
+    let file = File::open(path).unwrap();
+    let reader = BufReader::new(file);
+    let mut mask: Option<String> = Option::None;
+    let mut memory: Memory = HashMap::new();
+    for line in reader.lines() { 
+        let line_str = line.unwrap();
+        match parse_input_line(&line_str) {
+            InputLine::Mask(m) => {
+                mask = Option::Some(m);
+            },
+            InputLine::Store{addr, value} => {
+                let addresses = apply_mask_part2(addr, &mask.as_ref().unwrap());
+                for addr in addresses {
+                    memory.insert(addr, value);
+                }
+            }
+        }
+    }
+    memory.values().sum()
+}
+
 fn main() {
     assert_eq!(
         apply_mask_part1(
@@ -110,5 +169,7 @@ fn main() {
     let memory = process_input_part1();
     let part1_answer: u64 = memory.values().sum();
     assert_eq!(12408060320841, part1_answer);
-    println!("{:?}", part1_answer);
+    println!("Part 1: {:?}", part1_answer);
+    assert_eq!(208, process_input_part2(Path::new("part2-example.txt")));
+    println!("Part 2: {:?}", process_input_part2(Path::new("input.txt")));
 }
