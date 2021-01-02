@@ -35,26 +35,20 @@ fn apply_mask_part1(n: u64, mask: &str) -> u64 {
 // Returns a list of the results of applying the mask starting at
 // bit index `index`.  All of the previous bits have already been
 // processed and the results are in `n`.
-fn apply_mask_part2_helper(n: u64, mask: &str, index: usize) -> Vec<u64> {
+fn apply_mask_part2_helper(n: u64, mask: &str, index: usize, result: & mut Vec<u64>) {
     if index == 36 {
-        vec!(n)
+        result.push(n)
     } else {
         let c = mask.as_bytes()[35 - index];
         if c == b'0' {
-            apply_mask_part2_helper(n, mask, index + 1)
+            apply_mask_part2_helper(n, mask, index + 1, result)
         } else if c == b'1' {
-            apply_mask_part2_helper(set_bit(n, index), mask, index + 1)
+            apply_mask_part2_helper(set_bit(n, index), mask, index + 1, result)
         } else if c == b'X' {
-            let mut combined: Vec<u64> = Vec::new();
-            for x in apply_mask_part2_helper(clear_bit(n, index), mask, index + 1) {
-                combined.push(x);
-            }
-            for x in apply_mask_part2_helper(set_bit(n, index), mask, index + 1) {
-                combined.push(x);
-            }
-            combined
+            apply_mask_part2_helper(clear_bit(n, index), mask, index + 1, result);
+            apply_mask_part2_helper(set_bit(n, index), mask, index + 1, result)
         } else {
-            panic!();
+            panic!()
         }
 
     }
@@ -62,7 +56,9 @@ fn apply_mask_part2_helper(n: u64, mask: &str, index: usize) -> Vec<u64> {
 
 /// Applies a bitmask to a number, following the rules int Part 1
 fn apply_mask_part2(n: u64, mask: &str) -> Vec<u64> {
-    apply_mask_part2_helper(n, mask, 0)
+    let mut result = Vec::new();
+    apply_mask_part2_helper(n, mask, 0, &mut result);
+    result
 }
 
 /// One line from the input file
