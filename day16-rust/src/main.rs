@@ -1,7 +1,7 @@
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 use std::ops::Range;
@@ -12,7 +12,16 @@ type Ticket = Vec<u64>;
 
 /// A RangeSet is a set of Ranges that say what numbers are allowed
 /// in a field on a ticket.
-type RangeSet = Vec<Range<u64>>;
+type RangeSet = HashSet<Range<u64>>;
+
+/// Creates a RangeSet with the given values in it
+fn make_range_set(values: &[Range<u64>]) -> RangeSet {
+    let mut result = HashSet::new();
+    for n in values {
+        result.insert(n.clone());
+    }
+    result
+}
 
 fn parse_int(s: &str) -> Option<u64> {
     s.parse::<u64>().ok()
@@ -31,9 +40,9 @@ fn parse_range(s: &str) -> Option<Range<u64>> {
 
 /// Turns a string like "1-4 or 7-8" into a Vec of ranges.
 fn parse_range_set(s: &str) -> Option<RangeSet> {
-    let mut result: RangeSet = Vec::new();
+    let mut result: RangeSet = HashSet::new();
     for range_str in s.split(" or ") {
-        result.push(parse_range(range_str)?);
+        result.insert(parse_range(range_str)?);
     }
     Some(result)
 }
@@ -165,7 +174,7 @@ fn column_order(input_file: &InputFile, col_index: usize, names: &[&str]) -> Opt
 
 fn main() {
     assert_eq!(parse_range("2-10").unwrap(), 2..11);
-    assert_eq!(parse_range_set("1-4 or 7-8").unwrap(), [1..5, 7..9]);
+    assert_eq!(parse_range_set("1-4 or 7-8").unwrap(), make_range_set(&[1..5, 7..9]));
     println!("Hello, world!");
 
     let sample_input = parse_input_file("sample.txt").unwrap();
