@@ -7,7 +7,12 @@ use std::fs::File;
 use std::ops::Range;
 use std::path::Path;
 
+/// A Ticket has an ordered list of numbers
 type Ticket = Vec<u64>;
+
+/// A RangeSet is a set of Ranges that say what numbers are allowed
+/// in a field on a ticket.
+type RangeSet = Vec<Range<u64>>;
 
 fn parse_int(s: &str) -> Option<u64> {
     s.parse::<u64>().ok()
@@ -25,15 +30,15 @@ fn parse_range(s: &str) -> Option<Range<u64>> {
 }
 
 /// Turns a string like "1-4 or 7-8" into a Vec of ranges.
-fn parse_range_set(s: &str) -> Option<Vec<Range<u64>>> {
-    let mut result: Vec<Range<u64>> = Vec::new();
+fn parse_range_set(s: &str) -> Option<RangeSet> {
+    let mut result: RangeSet = Vec::new();
     for range_str in s.split(" or ") {
         result.push(parse_range(range_str)?);
     }
     Some(result)
 }
 
-fn parse_field_line(s: &str) -> Option<(String, Vec<Range<u64>>)> {
+fn parse_field_line(s: &str) -> Option<(String, RangeSet)> {
     let colon_pos = s.find(":")?;
     Some((String::from(&s[..colon_pos]), parse_range_set(&s[colon_pos+2 ..])?))
 }
@@ -42,7 +47,7 @@ fn parse_field_line(s: &str) -> Option<(String, Vec<Range<u64>>)> {
 #[derive(Debug)]
 struct InputFile {
     // mapping from field name on ticket to range
-    field_to_range_set: HashMap<String, Vec<Range<u64>>>,
+    field_to_range_set: HashMap<String, RangeSet>,
 
     // the numbers on my ticket
     my_ticket: Ticket,
