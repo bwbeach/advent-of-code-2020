@@ -7,8 +7,7 @@ use std::fs::File;
 use std::ops::Range;
 use std::path::Path;
 
-type Ticket<'a> = &'a [u64];
-
+type Ticket = Vec<u64>;
 
 fn parse_int(s: &str) -> Option<u64> {
     s.parse::<u64>().ok()
@@ -46,14 +45,14 @@ struct InputFile {
     field_to_range_set: HashMap<String, Vec<Range<u64>>>,
 
     // the numbers on my ticket
-    my_ticket: Vec<u64>,
+    my_ticket: Ticket,
 
     // all of the other tickets
-    other_tickets: Vec<Vec<u64>>,
+    other_tickets: Vec<Ticket>,
 }
 
-/// Turns a comma-separated list of numbers into a Vec<u64>
-fn parse_number_list(s: &str) -> Option<Vec<u64>> {
+/// Turns a comma-separated list of numbers into a Ticket
+fn parse_number_list(s: &str) -> Option<Ticket> {
     let mut result = Vec::new();
     for number_str in s.split(",") {
         result.push(parse_int(number_str)?);
@@ -125,24 +124,7 @@ fn ticket_scanning_error_rate(input_file: &InputFile) -> u64 {
     result
 }
 
-fn ticket_matches_ranges(ticket: &[u64], input_file: &InputFile) -> bool {
-    for n in ticket.iter() {
-        if ! in_any_range(n, input_file) {
-            return false
-        }
-    }
-    true
-}
-
-fn ticket_is_error(input_file: &InputFile) -> Vec<Ticket> {
-    let other_tickets: &Vec<Vec<u64>> = &input_file.other_tickets;
-    other_tickets.iter()
-        .map(|v| v.as_ref())
-        .filter(|t| ticket_matches_ranges(t, input_file))
-        .collect()
-}
-
-fn ranges_match_column(input_file: &InputFile, col_index: usize, tickets: &Vec<Vec<u64>>) -> bool {
+fn ranges_match_column(input_file: &InputFile, col_index: usize, tickets: &Vec<Ticket>) -> bool {
     for ticket in tickets {
         if ! in_any_range(&ticket[col_index], input_file) {
             return false;
