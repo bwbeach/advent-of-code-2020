@@ -237,13 +237,10 @@ fn main() {
     println!("Part 1: {}", ticket_scanning_error_rate(&real_input));
     let column_order = column_order(&real_input);
     println!("Column order: {:?}", column_order);
-    let mut product = 1;
-    for (i, name) in column_order.iter().enumerate() {
-        if name.starts_with("departure") {
-            let value = real_input.my_ticket[i];
-            product *=  value;
-            println!("AAA {:?} {:?} {:?}", name, value, product);
-        }
-    }
+    let product: u64 = column_order.iter()
+        .enumerate()
+        .filter(|(_, name)| name.starts_with("departure"))
+        .map(|(index, _)| real_input.my_ticket[index])
+        .product();
     println!("Part 2: {:?}", product);
 }
