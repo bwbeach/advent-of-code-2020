@@ -138,37 +138,64 @@ fn ticket_scanning_error_rate(input_file: &InputFile) -> u64 {
     result
 }
 
-fn ranges_match_column(input_file: &InputFile, col_index: usize, tickets: &Vec<Ticket>) -> bool {
+fn ticket_has_scan_error(ticket: &Ticket, input_file: &InputFile) -> bool {
+    for n in ticket.iter() {
+        if ! in_any_range(n, input_file) {
+            return true;
+        }
+    }
+    false
+}
+
+fn tickets_without_scan_errors(input_file: &InputFile) -> Vec<Ticket> {
+    input_file.other_tickets
+        .iter()
+        .filter(|t| ! ticket_has_scan_error(t, input_file))
+        .map(|t| t.clone())
+        .collect()
+}
+
+fn range_set_contains(range_set: &RangeSet, n: u64) -> bool {
+    for range in range_set.iter() {
+        if range.contains(&n) {
+            return true
+        }
+    }
+    false
+}
+
+fn range_set_matches_column(range_set: &RangeSet, col_index: usize, tickets: &Vec<Ticket>) -> bool {
     for ticket in tickets {
-        if ! in_any_range(&ticket[col_index], input_file) {
-            return false;
+        if ! range_set_contains(range_set, ticket[col_index]) {
+            return false
         }
     }
     true
 }
 
-fn column_order(input_file: &InputFile, col_index: usize, names: &[&str]) -> Option<Vec<String>> {
-    let mut first_and_rest: Vec<&str> = Vec::new();
-    for name in names {
-        first_and_rest.push(name);
-    }
-    for i in 0..first_and_rest.len() {
-        // move this candidate into position
-        first_and_rest.swap(0, i);
-
-        // is it compatible with the data?
-        let first_name = *first_and_rest.get(0).unwrap();
-        if ranges_match_column(input_file, col_index, &input_file.other_tickets) {
-            if let Some(rest_columns) = column_order(input_file, col_index + 1, &first_and_rest[1..]) {
-                let mut answer = Vec::new();
-                answer.push(String::from(first_name));
-                for later_name in rest_columns {
-                    answer.push(String::from(later_name));
-                }
-                return Some(answer)
-            }
+fn columns_that_match_range_set(tickets: &Vec<Ticket>, range_set: &RangeSet) -> HashSet<usize> {
+    let mut result = HashSet::new();
+    let column_count = tickets[0].len();
+    for col in 0..column_count {
+        if range_set_matches_column(range_set, col, tickets) {
+            result.insert(col);
         }
     }
+    result
+}
+
+fn compute_name_to_possible_columns(input_file: &InputFile) -> HashMap<String, HashSet<usize>> {
+    let tickets_to_check = tickets_without_scan_errors(input_file);
+    let mut result = HashMap::new();
+    for (name, range_set) in input_file.field_to_range_set.iter() {
+        result.insert(String::from(name), columns_that_match_range_set(&tickets_to_check, range_set));
+    }
+    result
+}
+
+fn column_order(input_file: &InputFile) -> Option<Vec<String>> {
+    let name_to_possible_columns = compute_name_to_possible_columns(input_file);
+    println!("name_to_possible_columns = {:?}", name_to_possible_columns);
     panic!("no answer found")
 }
 
@@ -183,7 +210,5 @@ fn main() {
 
     let real_input = parse_input_file("input.txt").unwrap();
     println!("Part 1: {}", ticket_scanning_error_rate(&real_input));
-    let column_names: Vec<String> = real_input.field_to_range_set.keys().map(|s| String::from(s)).collect();
-    let column_name_refs: Vec<&str> = column_names.iter().map(|s| s.as_str()).collect();
-    println!("Part 2 column order: {:?}", column_order(&real_input, 0, &column_name_refs));
+    let _ = column_order(&real_input);
 }
