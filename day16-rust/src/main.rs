@@ -184,19 +184,44 @@ fn columns_that_match_range_set(tickets: &Vec<Ticket>, range_set: &RangeSet) -> 
     result
 }
 
-fn compute_name_to_possible_columns(input_file: &InputFile) -> HashMap<String, HashSet<usize>> {
+fn compute_names_and_possible_columns(input_file: &InputFile) -> Vec<(String, HashSet<usize>)> {
     let tickets_to_check = tickets_without_scan_errors(input_file);
-    let mut result = HashMap::new();
+    let mut result = Vec::new();
     for (name, range_set) in input_file.field_to_range_set.iter() {
-        result.insert(String::from(name), columns_that_match_range_set(&tickets_to_check, range_set));
+        result.push((String::from(name), columns_that_match_range_set(&tickets_to_check, range_set)));
     }
+    result.sort_by(|a, b| a.1.len().cmp(&b.1.len()));
     result
 }
 
-fn column_order(input_file: &InputFile) -> Option<Vec<String>> {
-    let name_to_possible_columns = compute_name_to_possible_columns(input_file);
-    println!("name_to_possible_columns = {:?}", name_to_possible_columns);
-    panic!("no answer found")
+fn column_order_helper(remaining_fields: &[(String, HashSet<usize>)], columns_used: &HashSet<usize>) -> Option<Vec<String>> {
+    let column_count = remaining_fields.len() + columns_used.len();
+    if remaining_fields.is_empty() {
+        let mut result = Vec::new();
+        for _ in 0..column_count {
+            result.push(String::new())
+        }
+        return Some(result)
+    }
+    let ((field_name, possible_columns), rest) = remaining_fields.split_first().unwrap();
+    for candidate in possible_columns {
+        if ! columns_used.contains(candidate) {
+            let mut more_columns_used = columns_used.clone();
+            more_columns_used.insert(*candidate);
+            let option_answer: Option<Vec<String>> = column_order_helper(rest, &more_columns_used);
+            if option_answer.is_some() {
+                let mut answer = option_answer.unwrap();
+                answer[*candidate] = String::from(field_name);
+                return Some(answer)
+            }       
+        }
+    }
+    println!("no solution found for {:?} {:?}", remaining_fields, columns_used);
+    None
+}
+fn column_order(input_file: &InputFile) -> Vec<String> {
+    let names_and_possible_columns = compute_names_and_possible_columns(input_file);
+    column_order_helper(&names_and_possible_columns, &HashSet::new()).unwrap()
 }
 
 fn main() {
@@ -210,5 +235,15 @@ fn main() {
 
     let real_input = parse_input_file("input.txt").unwrap();
     println!("Part 1: {}", ticket_scanning_error_rate(&real_input));
-    let _ = column_order(&real_input);
+    let column_order = column_order(&real_input);
+    println!("Column order: {:?}", column_order);
+    let mut product = 1;
+    for (i, name) in column_order.iter().enumerate() {
+        if name.starts_with("departure") {
+            let value = real_input.my_ticket[i];
+            product *=  value;
+            println!("AAA {:?} {:?} {:?}", name, value, product);
+        }
+    }
+    println!("Part 2: {:?}", product);
 }
