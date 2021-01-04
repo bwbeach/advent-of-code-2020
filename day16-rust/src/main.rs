@@ -12,13 +12,32 @@ type Ticket = Vec<u64>;
 
 /// A RangeSet is a set of Ranges that say what numbers are allowed
 /// in a field on a ticket.
-type RangeSet = HashSet<Range<u64>>;
+#[derive(Debug, PartialEq)]
+struct RangeSet {
+    ranges: HashSet<Range<u64>>,
+}
+
+impl RangeSet {
+    fn new() -> RangeSet {
+        RangeSet {
+            ranges: HashSet::new(),
+        }
+    }
+
+    fn insert(&mut self, range: &Range<u64>) {
+        self.ranges.insert(range.clone());
+    }
+
+    fn contains(&self, n: u64) -> bool {
+        self.ranges.iter().any(|r| r.contains(&n))
+    }
+}
 
 /// Creates a RangeSet with the given values in it
 fn make_range_set(values: &[Range<u64>]) -> RangeSet {
-    let mut result = HashSet::new();
+    let mut result = RangeSet::new();
     for n in values {
-        result.insert(n.clone());
+        result.insert(n);
     }
     result
 }
@@ -40,9 +59,9 @@ fn parse_range(s: &str) -> Option<Range<u64>> {
 
 /// Turns a string like "1-4 or 7-8" into a Vec of ranges.
 fn parse_range_set(s: &str) -> Option<RangeSet> {
-    let mut result: RangeSet = HashSet::new();
+    let mut result: RangeSet = RangeSet::new();
     for range_str in s.split(" or ") {
-        result.insert(parse_range(range_str)?);
+        result.insert(&parse_range(range_str)?);
     }
     Some(result)
 }
@@ -117,10 +136,8 @@ fn parse_input_file(path_str: &str) -> Option<InputFile> {
 
 fn in_any_range(n: &u64, input_file: &InputFile) -> bool {
     for range_set in input_file.field_to_range_set.values() {
-        for range in range_set.iter() {
-            if range.contains(n) {
-                return true
-            }
+        if range_set.contains(*n) {
+            return true
         }
     }
     false
@@ -155,18 +172,9 @@ fn tickets_without_scan_errors(input_file: &InputFile) -> Vec<Ticket> {
         .collect()
 }
 
-fn range_set_contains(range_set: &RangeSet, n: u64) -> bool {
-    for range in range_set.iter() {
-        if range.contains(&n) {
-            return true
-        }
-    }
-    false
-}
-
 fn range_set_matches_column(range_set: &RangeSet, col_index: usize, tickets: &Vec<Ticket>) -> bool {
     for ticket in tickets {
-        if ! range_set_contains(range_set, ticket[col_index]) {
+        if ! range_set.contains(ticket[col_index]) {
             return false
         }
     }
