@@ -24,22 +24,14 @@ impl RangeSet {
         }
     }
 
-    fn insert(&mut self, range: &Range<u64>) {
+    fn insert(&mut self, range: &Range<u64>) -> &mut RangeSet {
         self.ranges.insert(range.clone());
+        self
     }
 
     fn contains(&self, n: u64) -> bool {
         self.ranges.iter().any(|r| r.contains(&n))
     }
-}
-
-/// Creates a RangeSet with the given values in it
-fn make_range_set(values: &[Range<u64>]) -> RangeSet {
-    let mut result = RangeSet::new();
-    for n in values {
-        result.insert(n);
-    }
-    result
 }
 
 fn parse_int(s: &str) -> Option<u64> {
@@ -120,10 +112,10 @@ fn parse_input_file(path_str: &str) -> Option<InputFile> {
 
     // other tickets
     assert_eq!("nearby tickets:", lines.next()?);
-    let mut other_tickets = Vec::new();
-    for line in lines {
-        other_tickets.push(parse_number_list(&line)?);
-    }
+    let other_tickets = 
+        lines  
+            .map(|line| parse_number_list(&line).unwrap())
+            .collect();
 
     Some(
         InputFile{
@@ -234,7 +226,10 @@ fn column_order(input_file: &InputFile) -> Vec<String> {
 
 fn main() {
     assert_eq!(parse_range("2-10").unwrap(), 2..11);
-    assert_eq!(parse_range_set("1-4 or 7-8").unwrap(), make_range_set(&[1..5, 7..9]));
+    assert_eq!(
+        parse_range_set("1-4 or 7-8").unwrap(), 
+        *RangeSet::new().insert(&(1..5)).insert(&(7..9))
+    );
     println!("Hello, world!");
 
     let sample_input = parse_input_file("sample.txt").unwrap();
