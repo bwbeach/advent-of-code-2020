@@ -214,11 +214,7 @@ fn compute_names_and_possible_columns(input_file: &InputFile) -> Vec<(String, Ha
 fn column_order_helper(remaining_fields: &[(String, HashSet<usize>)], columns_used: &HashSet<usize>) -> Option<Vec<String>> {
     let column_count = remaining_fields.len() + columns_used.len();
     if remaining_fields.is_empty() {
-        let mut result = Vec::new();
-        for _ in 0..column_count {
-            result.push(String::new())
-        }
-        return Some(result)
+        return Some(std::iter::repeat(String::new()).take(column_count).collect())
     }
     let ((field_name, possible_columns), rest) = remaining_fields.split_first().unwrap();
     for candidate in possible_columns {
