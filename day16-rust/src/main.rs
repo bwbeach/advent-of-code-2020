@@ -18,17 +18,28 @@ struct RangeSet {
 }
 
 impl RangeSet {
+    /// Creates a new, empty RangeSet
     fn new() -> RangeSet {
         RangeSet {
             ranges: HashSet::new(),
         }
     }
 
+    /// Adds one range to a range set
     fn insert(&mut self, range: &Range<u64>) -> &mut RangeSet {
         self.ranges.insert(range.clone());
         self
     }
 
+    /// Adds all of the ranges in another range set to this one
+    fn insert_all(&mut self, other: &RangeSet) -> &mut RangeSet {
+        for r in &other.ranges {
+            self.insert(r);
+        }
+        self
+    }
+
+    /// Does one of our ranges contain the given number?
     fn contains(&self, n: u64) -> bool {
         self.ranges.iter().any(|r| r.contains(&n))
     }
@@ -135,16 +146,22 @@ fn in_any_range(n: &u64, input_file: &InputFile) -> bool {
     false
 }
 
+/// Returns the sum of all numbers (from all tickets except ours)
+/// that do not match any of the ranges allowed for any field.
 fn ticket_scanning_error_rate(input_file: &InputFile) -> u64 {
-    let mut result = 0;
-    for ticket in input_file.other_tickets.iter() {
-        for n in ticket.iter() {
-            if ! in_any_range(n, input_file) {
-                result += n;
-            }
-        }
+    // Make a range set containing all of the ranges from
+    // the input file
+    let mut all_ranges = RangeSet::new();
+    for rs in input_file.field_to_range_set.values() {
+        all_ranges.insert_all(rs);
     }
-    result
+
+    // Sum all of the values that are not in any range.
+    input_file.other_tickets
+        .iter()
+        .flat_map(|t| t.iter())
+        .filter(|n| ! all_ranges.contains(**n))
+        .sum()
 }
 
 fn ticket_has_scan_error(ticket: &Ticket, input_file: &InputFile) -> bool {
