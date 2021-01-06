@@ -30,19 +30,34 @@ struct Location {
     z: i32,
 }
 
+/// A rectangular volume in a 3-d matrix.  Coordinates can be negative
+#[derive(Clone, Debug)]
+struct Volume {
+    x: CoordRange,
+    y: CoordRange,
+    z: CoordRange
+}
+
+impl Volume {
+    fn contains(&self, loc: &Location) -> bool {
+        self.x.contains(&loc.x) && self.y.contains(&loc.y) && self.z.contains(&loc.z)
+    }
+
+    fn extend(&self) -> Volume {
+        Volume {
+            x: extend_range(&self.x),
+            y: extend_range(&self.y),
+            z: extend_range(&self.z),
+        }
+    }
+}
 
 /// Holds the state of the pocket dimension, for a specified
 /// span of locations.
 #[derive(Debug)]
 struct State {
-    /// Range of X coordinates
-    x_range: CoordRange,
-
-    /// Range of Y coordinates
-    y_range: CoordRange,
-
-    /// Range of Z coordinates
-    z_range: CoordRange,
+    /// The shape of the matrix this State stores.
+    capacity: Volume,
 
     /// All of the cubes in this State.
     cubes: Vec<CubeState>,
@@ -52,36 +67,34 @@ impl State {
 
     /// Creates a new state of the given location and size, with all of the
     /// cubes being inactive.
-    fn new(x_range: &CoordRange, y_range: &CoordRange, z_range: &CoordRange) -> State {
+    fn new(capacity: &Volume) -> State {
 
         let cube_count = 
-                range_count(x_range)
-                    .checked_mul(range_count(y_range)).unwrap()
-                    .checked_mul(range_count(z_range)).unwrap();
+                range_count(&capacity.x)
+                    .checked_mul(range_count(&capacity.y)).unwrap()
+                    .checked_mul(range_count(&capacity.z)).unwrap();
 
         State {
-            x_range: x_range.clone(),
-            y_range: y_range.clone(),
-            z_range: z_range.clone(),
+            capacity: capacity.clone(),
             cubes: vec![CubeState::Inactive; cube_count]
         }
     }
 
     /// True iff the given location is within the space of this state.
     fn in_bounds(&self, loc: &Location) -> bool {
-        self.x_range.contains(&loc.x) && self.y_range.contains(&loc.y) && self.z_range.contains(&loc.z)
+        self.capacity.contains(loc)
     }
 
     /// Computes the address of a cube in the state, or None 
     /// if the address is out of bounds.
     fn address(&self, loc: &Location) -> Option<usize> {
         if self.in_bounds(loc) {
-            let y_stride = range_count(&self.x_range);
-            let z_stride = y_stride * range_count(&self.y_range);
+            let y_stride = range_count(&self.capacity.x);
+            let z_stride = y_stride * range_count(&self.capacity.y);
             Some(
-                ((loc.x - self.x_range.start) as usize) +
-                ((loc.y - self.y_range.start) as usize) * y_stride +
-                ((loc.z - self.z_range.start) as usize) * z_stride
+                ((loc.x - self.capacity.x.start) as usize) +
+                ((loc.y - self.capacity.y.start) as usize) * y_stride +
+                ((loc.z - self.capacity.z.start) as usize) * z_stride
             )
         } else {
             None
@@ -126,14 +139,10 @@ fn run_cycle(prev: &State) -> State {
     // Create a state that's one bigger than the old one.  
     // No new active cube can be more than one step away from
     // an existing one
-    let mut result = State::new(
-        &extend_range(&prev.x_range),
-        &extend_range(&prev.y_range),
-        &extend_range(&prev.z_range)
-    );
-    for x in result.x_range.clone() {
-        for y in result.y_range.clone() {
-            for z in result.z_range.clone() {
+    let mut result = State::new(&prev.capacity.extend());
+    for x in result.capacity.x.clone() {
+        for y in result.capacity.y.clone() {
+            for z in result.capacity.z.clone() {
                 let loc = Location {x, y, z};
                 let old_state = prev.get(&loc);
                 let active_count = prev.active_neighbors(&loc);
