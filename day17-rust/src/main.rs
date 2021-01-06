@@ -1,10 +1,25 @@
 use std::convert::TryInto;
+use std::ops::Range;
 
 /// The state of one cube in the pocket dimension.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum CubeState {
     Active,
     Inactive,
+}
+
+// A range of ordinate values in the space
+type CoordRange = Range<i32>;
+
+// The number of items in a Range
+// TODO: generic
+fn range_count(range: &CoordRange) -> usize {
+    (range.start - range.end).try_into().unwrap()
+}
+
+// Extend a range by one on either end.
+fn extend_range(range: &CoordRange) -> CoordRange {
+    (range.start - 1) .. (range.end + 1)
 }
 
 /// A location in a 3-d matrix.  Coordinates can be negative.
@@ -15,31 +30,19 @@ struct Location {
     z: i32,
 }
 
-/// The size of a 3-d matrix.
-#[derive(Clone, Debug)]
-struct Size {
-    x: usize, 
-    y: usize, 
-    z: usize,
-}
 
 /// Holds the state of the pocket dimension, for a specified
 /// span of locations.
 #[derive(Debug)]
 struct State {
-    /// The lower corner (in all three dimensions) of the cubes in this state.
-    lower_corner: Location,
+    /// Range of X coordinates
+    x_range: CoordRange,
 
-    /// The upper corner (in all three dimensions) of the cubes in this state.
-    upper_corner : Location,
+    /// Range of Y coordinates
+    y_range: CoordRange,
 
-    /// The size (exclusive) of this state.  The number of cubes
-    /// in this state is (size.x * size.y * size.z).  All three
-    /// numbers in size must be positive
-    size: Size,
-
-    /// The strides to adjacent cubes in each dimension.
-    stride: Size,
+    /// Range of Z coordinates
+    z_range: CoordRange,
 
     /// All of the cubes in this State.
     cubes: Vec<CubeState>,
@@ -49,46 +52,36 @@ impl State {
 
     /// Creates a new state of the given location and size, with all of the
     /// cubes being inactive.
-    fn new(lower_corner: &Location, size: &Size) -> State {
+    fn new(x_range: &CoordRange, y_range: &CoordRange, z_range: &CoordRange) -> State {
 
-        let upper_corner = Location{
-            x: lower_corner.x + (size.x as i32),
-            y: lower_corner.x + (size.y as i32),
-            z: lower_corner.x + (size.z as i32),
-        };
-
-        let cube_count = size.x.checked_mul(size.y).unwrap().checked_mul(size.z).unwrap();
-
-        let stride = Size {
-            x : 1,
-            y : size.x,
-            z : size.x * size.y
-        };
+        let cube_count = 
+                range_count(x_range)
+                    .checked_mul(range_count(y_range)).unwrap()
+                    .checked_mul(range_count(z_range)).unwrap();
 
         State {
-            lower_corner: lower_corner.clone(),
-            upper_corner,
-            size: size.clone(),
-            stride,
+            x_range: x_range.clone(),
+            y_range: y_range.clone(),
+            z_range: z_range.clone(),
             cubes: vec![CubeState::Inactive; cube_count]
         }
     }
 
     /// True iff the given location is within the space of this state.
     fn in_bounds(&self, loc: &Location) -> bool {
-        self.lower_corner.x <= loc.x && loc.x <= self.upper_corner.x &&
-        self.lower_corner.y <= loc.y && loc.y <= self.upper_corner.y &&
-        self.lower_corner.z <= loc.z && loc.z <= self.upper_corner.z
+        self.x_range.contains(&loc.x) && self.y_range.contains(&loc.y) && self.z_range.contains(&loc.z)
     }
 
     /// Computes the address of a cube in the state, or None 
     /// if the address is out of bounds.
     fn address(&self, loc: &Location) -> Option<usize> {
         if self.in_bounds(loc) {
+            let y_stride = range_count(&self.x_range);
+            let z_stride = y_stride * range_count(&self.y_range);
             Some(
-                ((loc.x - self.lower_corner.x) as usize) * self.stride.x +
-                ((loc.y - self.lower_corner.y) as usize) * self.stride.y +
-                ((loc.z - self.lower_corner.z) as usize) * self.stride.z
+                ((loc.x - self.x_range.start) as usize) +
+                ((loc.y - self.y_range.start) as usize) * y_stride +
+                ((loc.z - self.z_range.start) as usize) * z_stride
             )
         } else {
             None
@@ -98,6 +91,12 @@ impl State {
     /// Returns the contents of the cube at the given location.
     fn get(&self, loc: &Location) -> CubeState {
         self.address(loc).map(|a| self.cubes[a]).unwrap_or(CubeState::Inactive)
+    }
+
+    /// Sets the contents of a cube.  Panics if the location is out of range.
+    fn set(&mut self, loc: &Location, new_state: &CubeState) {
+        let a = self.address(loc).unwrap();
+        self.cubes[a] = *new_state;
     }
 
     /// Counts the number of active neighbors of a location
@@ -128,17 +127,35 @@ fn run_cycle(prev: &State) -> State {
     // No new active cube can be more than one step away from
     // an existing one
     let mut result = State::new(
-        &Location {
-            x: prev.lower_corner.x - 1,
-            y: prev.lower_corner.y - 1,
-            z: prev.lower_corner.z - 1,
-        },
-        &Size {
-            x: prev.size.x + 2,
-            y: prev.size.y + 2,
-            z: prev.size.z + 2,
-        }
+        &extend_range(&prev.x_range),
+        &extend_range(&prev.y_range),
+        &extend_range(&prev.z_range)
     );
+    for x in result.x_range.clone() {
+        for y in result.y_range.clone() {
+            for z in result.z_range.clone() {
+                let loc = Location {x, y, z};
+                let old_state = prev.get(&loc);
+                let active_count = prev.active_neighbors(&loc);
+                let new_state =
+                    match old_state {
+                        CubeState::Active => 
+                            if 2 <= active_count && active_count <= 3 {
+                                CubeState::Active
+                            } else {
+                                CubeState::Inactive
+                            },
+                        CubeState::Inactive => 
+                            if active_count == 3 {
+                                CubeState::Active
+                            } else {
+                                CubeState::Inactive
+                            },
+                    };
+                result.set(&loc, &new_state);
+            }
+        }
+    }
     result
 }
 
