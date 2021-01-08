@@ -177,29 +177,27 @@ impl State {
     }
 
     /// Sets the contents of a cube.  Panics if the location is out of range.
-    fn set(&mut self, loc: &Location, new_state: &CubeState) {
+    fn set_active(&mut self, loc: &Location) {
         if self.get(loc) != CubeState::Inactive {
             panic!("Setting a cube that is already active");
         }
         // Update the size, if needed.
-        if *new_state == CubeState::Active {
-            match &mut self.size {
-                None => {
-                    self.size = Some(
-                        Volume {
-                            ranges: loc.coords.iter().map(|c| (*c)..(c+1)).collect()
-                        }
-                    );
-                },
-                Some(volume) => {
-                    volume.update_to_include(loc);
-                }
+        match &mut self.size {
+            None => {
+                self.size = Some(
+                    Volume {
+                        ranges: loc.coords.iter().map(|c| (*c)..(c+1)).collect()
+                    }
+                );
+            },
+            Some(volume) => {
+                volume.update_to_include(loc);
             }
         }
 
         // Store the cube
         let a = self.address(loc).unwrap();
-        self.cubes[a] = *new_state;
+        self.cubes[a] = CubeState::Active;
     }
 
     /// Counts the number of active neighbors of a location
@@ -283,7 +281,7 @@ fn parse_initial_state(text: &str) -> State {
         for (x, c) in line.chars().enumerate() {
             if c == '#' {
                 let loc = result.x_y_loc(x as i32, y as i32);
-                result.set(&loc, &CubeState::Active);
+                result.set_active(&loc);
             }
         }
     }
@@ -362,11 +360,11 @@ fn main() {
     {
         let initial = parse_initial_state(TEST_STATE);
         let mut expected = State::new(&Volume { ranges: vec![0..3, 0..3, 0..1] });
-        expected.set(&expected.x_y_loc(1, 0), &CubeState::Active);
-        expected.set(&expected.x_y_loc(2, 1), &CubeState::Active);
-        expected.set(&expected.x_y_loc(0, 2), &CubeState::Active);
-        expected.set(&expected.x_y_loc(1, 2), &CubeState::Active);
-        expected.set(&expected.x_y_loc(2, 2), &CubeState::Active);
+        expected.set_active(&expected.x_y_loc(1, 0));
+        expected.set_active(&expected.x_y_loc(2, 1));
+        expected.set_active(&expected.x_y_loc(0, 2));
+        expected.set_active(&expected.x_y_loc(1, 2));
+        expected.set_active(&expected.x_y_loc(2, 2));
         assert_eq!(initial, expected);
     }
 
