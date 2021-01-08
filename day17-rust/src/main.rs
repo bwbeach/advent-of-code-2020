@@ -29,45 +29,89 @@ fn extend_range(range: &CoordRange) -> CoordRange {
     (range.start - 1) .. (range.end + 1)
 }
 
-/// A location in a 3-d matrix.  Coordinates can be negative.
-#[derive(Clone, Debug)]
+/// A location in an N-d matrix.  Coordinates can be negative.
+#[derive(Clone, Debug, PartialEq)]
 struct Location {
-    x: i32, 
-    y: i32, 
-    z: i32,
+    coords: Vec<i32>,
 }
 
 /// A rectangular volume in a 3-d matrix.  Coordinates can be negative
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct Volume {
-    x: CoordRange,
-    y: CoordRange,
-    z: CoordRange
+    ranges: Vec<CoordRange>,
 }
 
 impl Volume {
     fn contains(&self, loc: &Location) -> bool {
-        self.x.contains(&loc.x) && self.y.contains(&loc.y) && self.z.contains(&loc.z)
+        self.ranges.iter().zip(loc.coords.iter()).all(
+            |(r, c)| r.contains(c)
+        )
     }
 
     fn extend_by_one(&self) -> Volume {
         Volume {
-            x: extend_range(&self.x),
-            y: extend_range(&self.y),
-            z: extend_range(&self.z),
+            ranges: self.ranges.iter().map(|r| extend_range(r)).collect()
         }
     }
 
     fn update_to_include(&mut self, loc: &Location) {
-        update_range_to_include(&mut self.x, loc.x);
-        update_range_to_include(&mut self.y, loc.y);
-        update_range_to_include(&mut self.z, loc.z);
+        for (r, c) in self.ranges.iter_mut().zip(loc.coords.iter()) {
+            update_range_to_include(r, *c)
+        }
+    }
+}
+
+impl IntoIterator for &Volume {
+    type Item = Location;
+    type IntoIter = VolumeIter;
+
+    fn into_iter(self) -> VolumeIter {
+        let ranges = &self.ranges;
+        let mut coords: Vec<i32> = ranges.into_iter().map(|r| r.start).collect();
+        // When next is called, it will increment first, so we decrement by one
+        // so the first value returned will be the right one.
+        coords[0] -= 1;
+
+        VolumeIter {
+            ranges: self.ranges.clone(),
+            current: Location { coords }
+        }
+    }
+}
+
+struct VolumeIter {
+    ranges: Vec<CoordRange>,   // TODO: ref
+    current: Location,
+}
+
+impl Iterator for VolumeIter {
+    type Item = Location;
+
+    fn next(&mut self) -> Option<Location> {
+        let n = self.ranges.len();
+        let at_end = (0..n).into_iter().all(|i| self.current.coords[i] == self.ranges[i].end - 1);
+        if at_end {
+            None
+        } else {
+            for i in 0..n {
+                if self.current.coords[i] == self.ranges[i].end - 1 {
+                    self.current.coords[i] = self.ranges[i].start;
+                    // fall through to increment the next counter
+                } else {
+                    self.current.coords[i] += 1;
+                    break;
+                }
+            }
+            Some(self.current.clone())
+        }
     }
 }
 
 /// Holds the state of the pocket dimension, for a specified
 /// span of locations.
-#[derive(Debug)]
+/// 
+/// TODO: equality should ignore inactive cubes and compare only size, not capacity
+#[derive(Debug, PartialEq)]
 struct State {
     /// The shape of the matrix this State stores.
     capacity: Volume,
@@ -86,9 +130,9 @@ impl State {
     fn new(capacity: &Volume) -> State {
 
         let cube_count = 
-                range_count(&capacity.x)
-                    .checked_mul(range_count(&capacity.y)).unwrap()
-                    .checked_mul(range_count(&capacity.z)).unwrap();
+            capacity.ranges.iter()
+                .map(|r| range_count(r))
+                .product();
 
         State {
             capacity: capacity.clone(),
@@ -106,13 +150,13 @@ impl State {
     /// if the address is out of bounds.
     fn address(&self, loc: &Location) -> Option<usize> {
         if self.in_bounds(loc) {
-            let y_stride = range_count(&self.capacity.x);
-            let z_stride = y_stride * range_count(&self.capacity.y);
-            Some(
-                ((loc.x - self.capacity.x.start) as usize) +
-                ((loc.y - self.capacity.y.start) as usize) * y_stride +
-                ((loc.z - self.capacity.z.start) as usize) * z_stride
-            )
+            let mut result = 0;
+            let mut stride = 1usize;
+            for (r, c) in self.capacity.ranges.iter().zip(loc.coords.iter()) {
+                result += ((c - r.start) as usize) * stride;
+                stride *= range_count(r);
+            }
+            Some(result)
         } else {
             None
         }
@@ -121,6 +165,15 @@ impl State {
     /// Returns the contents of the cube at the given location.
     fn get(&self, loc: &Location) -> CubeState {
         self.address(loc).map(|a| self.cubes[a]).unwrap_or(CubeState::Inactive)
+    }
+
+    /// Returns the location for a given x and y, with the rest of the
+    /// coordinates being 0.
+    fn x_y_loc(&self, x: i32, y: i32) -> Location {
+        let mut coords = [0i32].repeat(self.capacity.ranges.len());
+        coords[0] = x;
+        coords[1] = y;
+        Location { coords }
     }
 
     /// Sets the contents of a cube.  Panics if the location is out of range.
@@ -134,9 +187,7 @@ impl State {
                 None => {
                     self.size = Some(
                         Volume {
-                            x: loc.x .. (loc.x + 1),
-                            y: loc.y .. (loc.y + 1),
-                            z: loc.z .. (loc.z + 1),
+                            ranges: loc.coords.iter().map(|c| (*c)..(c+1)).collect()
                         }
                     );
                 },
@@ -154,22 +205,23 @@ impl State {
     /// Counts the number of active neighbors of a location
     fn active_neighbors(&self, loc: &Location) -> usize {
         let mut count = 0;
-        for dx in -1..=1 {
-            for dy in -1..=1 {
-                for dz in -1..=1 {
-                    if dx != 0 || dy != 0 || dz != 0 {
-                        let neighbor = Location {
-                            x: loc.x + dx,
-                            y: loc.y + dy,
-                            z: loc.z + dz,
-                        };
-                        if self.get(&neighbor) == CubeState::Active {
-                            count += 1;
-                        }
-                    }
-                }
-            }
-        }
+        // TODO
+        // for dx in -1..=1 {
+        //     for dy in -1..=1 {
+        //         for dz in -1..=1 {
+        //             if dx != 0 || dy != 0 || dz != 0 {
+        //                 let neighbor = Location {
+        //                     x: loc.x + dx,
+        //                     y: loc.y + dy,
+        //                     z: loc.z + dz,
+        //                 };
+        //                 if self.get(&neighbor) == CubeState::Active {
+        //                     count += 1;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         count
     }
 
@@ -188,32 +240,33 @@ fn run_cycle(prev: &State) -> State {
     let mut result = State::new(&new_capacity);
 
     // Compute the state of each cube in the new State
-    for x in new_capacity.x.clone() {
-        for y in new_capacity.y.clone() {
-            for z in new_capacity.z.clone() {
-                let loc = Location {x, y, z};
-                let old_state = prev.get(&loc);
-                let active_count = prev.active_neighbors(&loc);
-                let new_state =
-                    match old_state {
-                        CubeState::Active => 
-                            if 2 <= active_count && active_count <= 3 {
-                                CubeState::Active
-                            } else {
-                                CubeState::Inactive
-                            },
-                        CubeState::Inactive => 
-                            if active_count == 3 {
-                                CubeState::Active
-                            } else {
-                                CubeState::Inactive
-                            },
-                    };
-                // println!("AAA {:?} {:?} {:?} {:?} {:?} {:?}", x, y, z, old_state, active_count, new_state);
-                result.set(&loc, &new_state);
-            }
-        }
-    }
+    // TODO
+    // for x in new_capacity.x.clone() {
+    //     for y in new_capacity.y.clone() {
+    //         for z in new_capacity.z.clone() {
+    //             let loc = Location {x, y, z};
+    //             let old_state = prev.get(&loc);
+    //             let active_count = prev.active_neighbors(&loc);
+    //             let new_state =
+    //                 match old_state {
+    //                     CubeState::Active => 
+    //                         if 2 <= active_count && active_count <= 3 {
+    //                             CubeState::Active
+    //                         } else {
+    //                             CubeState::Inactive
+    //                         },
+    //                     CubeState::Inactive => 
+    //                         if active_count == 3 {
+    //                             CubeState::Active
+    //                         } else {
+    //                             CubeState::Inactive
+    //                         },
+    //                 };
+    //             // println!("AAA {:?} {:?} {:?} {:?} {:?} {:?}", x, y, z, old_state, active_count, new_state);
+    //             result.set(&loc, &new_state);
+    //         }
+    //     }
+    // }
     result
 }
 
@@ -222,16 +275,14 @@ fn parse_initial_state(text: &str) -> State {
     let col_count = lines[0].len() as i32;
     let row_count = lines.len() as i32;
     let capacity = Volume {
-        x: 0..col_count,
-        y: 0..row_count,
-        z: 0..1,
+        ranges: vec![0..col_count, 0..row_count, 0..1]
     };
     println!("capacity: {:?}", capacity);
     let mut result = State::new(&capacity);
     for (y, line) in (&lines).iter().enumerate() {
         for (x, c) in line.chars().enumerate() {
             if c == '#' {
-                let loc = Location{ x: x as i32, y: y as i32, z: 0};
+                let loc = result.x_y_loc(x as i32, y as i32);
                 result.set(&loc, &CubeState::Active);
             }
         }
@@ -242,19 +293,20 @@ fn parse_initial_state(text: &str) -> State {
 fn print_state(state: &State) {
     let size = state.size.as_ref().unwrap();
     println!("size = {:?}", size);
-    for z in size.z.clone() {
-        println!("z={}", z);
-        for y in size.y.clone() {
-            for x in size.x.clone() {
-                let loc = Location{x, y, z};
-                let s = state.get(&loc);
-                let c = if s == CubeState::Active { '#' } else { '.' };
-                print!("{}", c);
-            }
-            println!("");
-        }
-        println!("");
-    }
+    // TODO
+    // for z in size.z.clone() {
+    //     println!("z={}", z);
+    //     for y in size.y.clone() {
+    //         for x in size.x.clone() {
+    //             let loc = Location{x, y, z};
+    //             let s = state.get(&loc);
+    //             let c = if s == CubeState::Active { '#' } else { '.' };
+    //             print!("{}", c);
+    //         }
+    //         println!("");
+    //     }
+    //     println!("");
+    // }
 }
 
 const TEST_STATE: &str = "
@@ -288,6 +340,36 @@ fn run_one(initial: &str) {
 }
 
 fn main() {
-    run_one(TEST_STATE);
-    run_one(MY_INPUT);
+    
+    {
+        let volume = Volume { ranges: vec![0..2, 2..4, 4..6] };
+        let iter_result: Vec<Vec<i32>> = volume.into_iter().map(|loc| loc.coords).collect();
+        assert_eq!(
+            vec![
+                vec![0, 2, 4],
+                vec![1, 2, 4],
+                vec![0, 3, 4],
+                vec![1, 3, 4],
+                vec![0, 2, 5],
+                vec![1, 2, 5],
+                vec![0, 3, 5],
+                vec![1, 3, 5],
+            ],
+            iter_result
+        )
+    }
+
+    {
+        let initial = parse_initial_state(TEST_STATE);
+        let mut expected = State::new(&Volume { ranges: vec![0..3, 0..3, 0..1] });
+        expected.set(&expected.x_y_loc(1, 0), &CubeState::Active);
+        expected.set(&expected.x_y_loc(2, 1), &CubeState::Active);
+        expected.set(&expected.x_y_loc(0, 2), &CubeState::Active);
+        expected.set(&expected.x_y_loc(1, 2), &CubeState::Active);
+        expected.set(&expected.x_y_loc(2, 2), &CubeState::Active);
+        assert_eq!(initial, expected);
+    }
+
+    // run_one(TEST_STATE);
+    // run_one(MY_INPUT);
 }
