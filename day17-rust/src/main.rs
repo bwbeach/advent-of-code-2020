@@ -33,20 +33,40 @@ fn extend_range(range: &CoordRange) -> CoordRange {
     (range.start - 1) .. (range.end + 1)
 }
 
+/// The maximum number of dimensions supported
+const MAX_DIMENSIONS: usize = 7;
+
 /// A location in an N-d matrix.  Coordinates can be negative.
+/// 
+/// Coordinates must be in the range -100 to 100.  All coordinates,
+/// and the N that is the number of dimensions are stored in a 
+/// single u64 value, each one getting one byte.
+/// 
+/// The low-order byte is N, the number of dimensions, followed
+/// by one byte for each of the dimensions, with 0 stored as 0x80,
+/// and negative numbers less than that.
+/// 
 #[derive(Clone, Debug, PartialEq)]
 struct Location {
-    coords: Vec<i32>,
+    dimensions: usize,
+    data: [i32; MAX_DIMENSIONS],
 }
 
 /// A set of coordinates in an N-dimensional space
 impl Location {
 
+    /// Returns a new Location with the given X and Y values, and all
+    /// other coordinates 0.
     fn new_x_y(x: i32, y: i32, dimensions: usize) -> Location {
-        let mut coords = [0i32].repeat(dimensions);
-        coords[0] = x;
-        coords[1] = y;
-        Location { coords }
+        Location {
+            dimensions : dimensions,
+            data : {
+                let mut data = [0i32; MAX_DIMENSIONS];
+                data[0] = x;
+                data[1] = y;
+                data
+            }
+        }
     }
 
     fn iter(&self) -> LocIter {
@@ -56,7 +76,13 @@ impl Location {
 
 impl FromIterator<i32> for Location {
     fn from_iter<I: IntoIterator<Item=i32>>(iter: I) -> Self {
-        Location { coords: Vec::from_iter(iter) }
+        let mut dimensions = 0;
+        let mut data = [0i32; MAX_DIMENSIONS];
+        for c in iter {
+            data[dimensions as usize] = c;
+            dimensions += 1;
+        }
+        Location { dimensions, data }
     }
 }
 
@@ -64,13 +90,15 @@ impl Index<usize> for Location {
     type Output = i32;
 
     fn index(&self, i: usize) -> &Self::Output {
-        & self.coords[i]
+        assert!(i < self.dimensions);
+        & self.data[i]
     }
 }
 
 impl IndexMut<usize> for Location {
     fn index_mut(&mut self, i: usize) -> &mut Self::Output {
-        &mut self.coords[i]
+        assert!(i < self.dimensions);
+        &mut self.data[i]
     }
 }
 
@@ -83,7 +111,7 @@ impl<'a> Iterator for LocIter<'a> {
     type Item = i32;
 
     fn next(&mut self) -> Option<i32> {
-        if self.next_index < self.loc.coords.len() {
+        if self.next_index < self.loc.dimensions as usize {
             let result = self.loc[self.next_index];
             self.next_index += 1;
             Some(result)
