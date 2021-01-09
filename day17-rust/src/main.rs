@@ -269,24 +269,32 @@ fn parse_initial_state(text: &str, dimensions: usize) -> State {
     result
 }
 
+fn is_new_grid(option_a: &Option<Location>, b: &Location) -> bool {
+    option_a.as_ref().map(
+        |a| (2..(a.coords.len())).into_iter().any(|i| a.coords[i] != b.coords[i])
+    ).unwrap_or(true)
+}
+
 /// Prints out a State in the format used on the web site
-/// 
-/// TODO: generalize to N dimensions
 fn print_state(state: &State) {
     let size = state.size.as_ref().unwrap();
     println!("size = {:?}", size);
-    for z in size.ranges[2].clone() {
-        println!("z={}", z);
-        for y in size.ranges[1].clone() {
-            for x in size.ranges[0].clone() {
-                let loc = Location{ coords: vec![x, y, z]};
-                let s = state.get(&loc);
-                let c = if s == CubeState::Active { '#' } else { '.' };
-                print!("{}", c);
-            }
-            println!("");
+    let mut prev_loc : Option<Location> = None;
+    for loc in size.into_iter() {
+        if is_new_grid(&prev_loc, &loc) {
+            println!("AAA {:?}", loc);
         }
-        println!("");
+        let s = state.get(&loc);
+        let c = if s == CubeState::Active { '#' } else { '.' };
+        print!("{}", c); 
+
+        if loc.coords[0] == size.ranges[0].end - 1 {
+            println!();
+            if loc.coords[1] == size.ranges[1].end - 1 {
+                println!();
+            }
+        }
+        prev_loc = Some(loc);
     }
 }
 
@@ -351,6 +359,9 @@ fn main() {
         assert_eq!(initial, expected);
     }
 
-    run_one(TEST_STATE, 3);
+    run_one(TEST_STATE, 4);
     run_one(MY_INPUT, 4);
+
+    // part 1: 848
+    // part 2: 1980
 }
