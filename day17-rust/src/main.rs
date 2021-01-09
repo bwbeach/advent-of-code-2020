@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::cmp;
 use std::ops::Range;
+use streaming_iterator::StreamingIterator;
 
 /// The state of one cube in the pocket dimension.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -59,22 +60,19 @@ impl Volume {
             update_range_to_include(r, *c)
         }
     }
-}
 
-impl IntoIterator for &Volume {
-    type Item = Location;
-    type IntoIter = VolumeIter;
-
-    fn into_iter(self) -> VolumeIter {
-        let ranges = &self.ranges;
-        let mut coords: Vec<i32> = ranges.into_iter().map(|r| r.start).collect();
-        // When next is called, it will increment first, so we decrement by one
-        // so the first value returned will be the right one.
-        coords[0] -= 1;
-
+    fn streaming_iter(&self) -> VolumeIter {
         VolumeIter {
-            ranges: self.ranges.clone(),
-            current: Location { coords }
+            ranges: self.ranges.clone(),  // TODO: ref
+            current: {
+                let ranges = &self.ranges;
+                let mut coords: Vec<i32> = ranges.into_iter().map(|r| r.start).collect();
+                // When next is called, it will increment first, so we decrement by one
+                // so the first value returned will be the right one.
+                coords[0] -= 1;
+                Location { coords }
+            },
+            done: false,
         }
     }
 }
@@ -82,27 +80,32 @@ impl IntoIterator for &Volume {
 struct VolumeIter {
     ranges: Vec<CoordRange>,   // TODO: ref
     current: Location,
+    done: bool,
 }
 
-impl Iterator for VolumeIter {
+impl StreamingIterator for VolumeIter {
     type Item = Location;
 
-    fn next(&mut self) -> Option<Location> {
+    fn advance(&mut self) {
+        assert!(! self.done);
         let n = self.ranges.len();
-        let at_end = (0..n).into_iter().all(|i| self.current.coords[i] == self.ranges[i].end - 1);
-        if at_end {
+        for i in 0..n {
+            if self.current.coords[i] == self.ranges[i].end - 1 {
+                self.current.coords[i] = self.ranges[i].start;
+                // fall through to increment the next counter
+            } else {
+                self.current.coords[i] += 1;
+                return;
+            }
+        }
+        self.done = true;
+    }
+
+    fn get(&self) -> Option<&Self::Item> {
+        if self.done {
             None
         } else {
-            for i in 0..n {
-                if self.current.coords[i] == self.ranges[i].end - 1 {
-                    self.current.coords[i] = self.ranges[i].start;
-                    // fall through to increment the next counter
-                } else {
-                    self.current.coords[i] += 1;
-                    break;
-                }
-            }
-            Some(self.current.clone())
+            Some(&self.current)
         }
     }
 }
@@ -208,7 +211,7 @@ impl State {
         };
 
         // Count the active cubes that aren't the middle one.
-        to_check.into_iter()
+        to_check.streaming_iter()
             .filter(|loc| loc != middle)
             .filter(|loc| self.get(loc) == CubeState::Active)
             .count()
@@ -228,7 +231,8 @@ fn run_cycle(prev: &State) -> State {
     let new_capacity = prev_size.extend_by_one();
     let mut result = State::new(&new_capacity);
 
-    for loc in new_capacity.into_iter() {
+    let mut si = new_capacity.streaming_iter();
+    while let Some(loc) = si.next() {
         let old_state = prev.get(&loc);
         let active_count = prev.active_neighbors(&loc);
         let is_active =
@@ -269,19 +273,14 @@ fn parse_initial_state(text: &str, dimensions: usize) -> State {
     result
 }
 
-fn is_new_grid(option_a: &Option<Location>, b: &Location) -> bool {
-    option_a.as_ref().map(
-        |a| (2..(a.coords.len())).into_iter().any(|i| a.coords[i] != b.coords[i])
-    ).unwrap_or(true)
-}
-
 /// Prints out a State in the format used on the web site
 fn print_state(state: &State) {
     let size = state.size.as_ref().unwrap();
     println!("size = {:?}", size);
-    let mut prev_loc : Option<Location> = None;
-    for loc in size.into_iter() {
-        if is_new_grid(&prev_loc, &loc) {
+    let mut prev_z = size.ranges[2].start - 1;  // a Z value than is never used, and won't match the first one
+    let mut si = size.streaming_iter();
+    while let Some(loc) = si.next() {
+        if prev_z != loc.coords[2] {
             println!("AAA {:?}", loc);
         }
         let s = state.get(&loc);
@@ -294,7 +293,7 @@ fn print_state(state: &State) {
                 println!();
             }
         }
-        prev_loc = Some(loc);
+        prev_z = loc.coords[2];
     }
 }
 
@@ -332,7 +331,11 @@ fn main() {
     
     {
         let volume = Volume { ranges: vec![0..2, 2..4, 4..6] };
-        let iter_result: Vec<Vec<i32>> = volume.into_iter().map(|loc| loc.coords).collect();
+        let mut iter_result: Vec<Vec<i32>> = Vec::new();
+        let mut si = volume.streaming_iter();
+        while let Some(loc) = si.next() {
+            iter_result.push(loc.coords.clone());
+        }
         assert_eq!(
             vec![
                 vec![0, 2, 4],
