@@ -1,5 +1,8 @@
 use std::convert::TryInto;
 use std::cmp;
+use std::iter::FromIterator;
+use std::ops::Index;
+use std::ops::IndexMut;
 use std::ops::Range;
 use streaming_iterator::StreamingIterator;
 
@@ -36,6 +39,60 @@ struct Location {
     coords: Vec<i32>,
 }
 
+/// A set of coordinates in an N-dimensional space
+impl Location {
+
+    fn new_x_y(x: i32, y: i32, dimensions: usize) -> Location {
+        let mut coords = [0i32].repeat(dimensions);
+        coords[0] = x;
+        coords[1] = y;
+        Location { coords }
+    }
+
+    fn iter(&self) -> LocIter {
+        LocIter { loc : self, next_index: 0 }
+    }
+}
+
+impl FromIterator<i32> for Location {
+    fn from_iter<I: IntoIterator<Item=i32>>(iter: I) -> Self {
+        Location { coords: Vec::from_iter(iter) }
+    }
+}
+
+impl Index<usize> for Location {
+    type Output = i32;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        & self.coords[i]
+    }
+}
+
+impl IndexMut<usize> for Location {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        &mut self.coords[i]
+    }
+}
+
+struct LocIter<'a> {
+    loc: &'a Location,
+    next_index: usize,
+}
+
+impl<'a> Iterator for LocIter<'a> {
+    type Item = i32;
+
+    fn next(&mut self) -> Option<i32> {
+        if self.next_index < self.loc.coords.len() {
+            let result = self.loc[self.next_index];
+            self.next_index += 1;
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 /// A rectangular volume in a 3-d matrix.  Coordinates can be negative
 #[derive(Clone, Debug, PartialEq)]
 struct Volume {
@@ -44,8 +101,8 @@ struct Volume {
 
 impl Volume {
     fn contains(&self, loc: &Location) -> bool {
-        self.ranges.iter().zip(loc.coords.iter()).all(
-            |(r, c)| r.contains(c)
+        (0..self.ranges.len()).into_iter().all(
+            |i| self.ranges[i].contains(&loc[i])
         )
     }
 
@@ -56,8 +113,8 @@ impl Volume {
     }
 
     fn update_to_include(&mut self, loc: &Location) {
-        for (r, c) in self.ranges.iter_mut().zip(loc.coords.iter()) {
-            update_range_to_include(r, *c)
+        for i in 0..self.ranges.len() {
+            update_range_to_include(&mut self.ranges[i], loc[i])
         }
     }
 
@@ -66,11 +123,11 @@ impl Volume {
             ranges: self.ranges.clone(),  // TODO: ref
             current: {
                 let ranges = &self.ranges;
-                let mut coords: Vec<i32> = ranges.into_iter().map(|r| r.start).collect();
+                let mut result: Location = ranges.into_iter().map(|r| r.start).collect();
                 // When next is called, it will increment first, so we decrement by one
                 // so the first value returned will be the right one.
-                coords[0] -= 1;
-                Location { coords }
+                result[0] -= 1;
+                result
             },
             done: false,
         }
@@ -90,11 +147,11 @@ impl StreamingIterator for VolumeIter {
         assert!(! self.done);
         let n = self.ranges.len();
         for i in 0..n {
-            if self.current.coords[i] == self.ranges[i].end - 1 {
-                self.current.coords[i] = self.ranges[i].start;
+            if self.current[i] == self.ranges[i].end - 1 {
+                self.current[i] = self.ranges[i].start;
                 // fall through to increment the next counter
             } else {
-                self.current.coords[i] += 1;
+                self.current[i] += 1;
                 return;
             }
         }
@@ -155,7 +212,8 @@ impl State {
         if self.in_bounds(loc) {
             let mut result = 0;
             let mut stride = 1usize;
-            for (r, c) in self.capacity.ranges.iter().zip(loc.coords.iter()) {
+            for (i, r) in self.capacity.ranges.iter().enumerate() {
+                let c = loc[i];
                 result += ((c - r.start) as usize) * stride;
                 stride *= range_count(r);
             }
@@ -170,13 +228,15 @@ impl State {
         self.address(loc).map(|a| self.cubes[a]).unwrap_or(CubeState::Inactive)
     }
 
+    // How many dimensions does this state have?
+    fn dimensions(&self) -> usize {
+        self.capacity.ranges.len()
+    }
+
     /// Returns the location for a given x and y, with the rest of the
     /// coordinates being 0.
     fn x_y_loc(&self, x: i32, y: i32) -> Location {
-        let mut coords = [0i32].repeat(self.capacity.ranges.len());
-        coords[0] = x;
-        coords[1] = y;
-        Location { coords }
+        Location::new_x_y(x, y, self.dimensions())
     }
 
     /// Sets the contents of a cube.  Panics if the location is out of range.
@@ -189,7 +249,7 @@ impl State {
             None => {
                 self.size = Some(
                     Volume {
-                        ranges: loc.coords.iter().map(|c| (*c)..(c+1)).collect()
+                        ranges: (0..self.dimensions()).into_iter().map(|i| (loc[i])..(loc[i]+1)).collect()
                     }
                 );
             },
@@ -207,7 +267,7 @@ impl State {
     fn active_neighbors(&self, middle: &Location) -> usize {
         // Create a Volume of all of the neighboring cubes, plus the middle one
         let to_check = Volume {
-            ranges: middle.coords.iter().map(|n| (n-1) .. (n+2)).collect()
+            ranges: middle.iter().map(|n| (n-1) .. (n+2)).collect()
         };
 
         // Count the active cubes that aren't the middle one.
@@ -280,20 +340,20 @@ fn print_state(state: &State) {
     let mut prev_z = size.ranges[2].start - 1;  // a Z value than is never used, and won't match the first one
     let mut si = size.streaming_iter();
     while let Some(loc) = si.next() {
-        if prev_z != loc.coords[2] {
+        if prev_z != loc[2] {
             println!("AAA {:?}", loc);
         }
         let s = state.get(&loc);
         let c = if s == CubeState::Active { '#' } else { '.' };
         print!("{}", c); 
 
-        if loc.coords[0] == size.ranges[0].end - 1 {
+        if loc[0] == size.ranges[0].end - 1 {
             println!();
-            if loc.coords[1] == size.ranges[1].end - 1 {
+            if loc[1] == size.ranges[1].end - 1 {
                 println!();
             }
         }
-        prev_z = loc.coords[2];
+        prev_z = loc[2];
     }
 }
 
@@ -334,7 +394,7 @@ fn main() {
         let mut iter_result: Vec<Vec<i32>> = Vec::new();
         let mut si = volume.streaming_iter();
         while let Some(loc) = si.next() {
-            iter_result.push(loc.coords.clone());
+            iter_result.push(loc.iter().collect());
         }
         assert_eq!(
             vec![
