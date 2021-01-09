@@ -201,26 +201,17 @@ impl State {
     }
 
     /// Counts the number of active neighbors of a location
-    fn active_neighbors(&self, loc: &Location) -> usize {
-        let mut count = 0;
-        // TODO
-        // for dx in -1..=1 {
-        //     for dy in -1..=1 {
-        //         for dz in -1..=1 {
-        //             if dx != 0 || dy != 0 || dz != 0 {
-        //                 let neighbor = Location {
-        //                     x: loc.x + dx,
-        //                     y: loc.y + dy,
-        //                     z: loc.z + dz,
-        //                 };
-        //                 if self.get(&neighbor) == CubeState::Active {
-        //                     count += 1;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        count
+    fn active_neighbors(&self, middle: &Location) -> usize {
+        // Create a Volume of all of the neighboring cubes, plus the middle one
+        let to_check = Volume {
+            ranges: middle.coords.iter().map(|n| (n-1) .. (n+2)).collect()
+        };
+
+        // Count the active cubes that aren't the middle one.
+        to_check.into_iter()
+            .filter(|loc| loc != middle)
+            .filter(|loc| self.get(loc) == CubeState::Active)
+            .count()
     }
 
     /// Counts the number of active cubes in the entire state
@@ -237,44 +228,34 @@ fn run_cycle(prev: &State) -> State {
     let new_capacity = prev_size.extend_by_one();
     let mut result = State::new(&new_capacity);
 
-    // Compute the state of each cube in the new State
-    // TODO
-    // for x in new_capacity.x.clone() {
-    //     for y in new_capacity.y.clone() {
-    //         for z in new_capacity.z.clone() {
-    //             let loc = Location {x, y, z};
-    //             let old_state = prev.get(&loc);
-    //             let active_count = prev.active_neighbors(&loc);
-    //             let new_state =
-    //                 match old_state {
-    //                     CubeState::Active => 
-    //                         if 2 <= active_count && active_count <= 3 {
-    //                             CubeState::Active
-    //                         } else {
-    //                             CubeState::Inactive
-    //                         },
-    //                     CubeState::Inactive => 
-    //                         if active_count == 3 {
-    //                             CubeState::Active
-    //                         } else {
-    //                             CubeState::Inactive
-    //                         },
-    //                 };
-    //             // println!("AAA {:?} {:?} {:?} {:?} {:?} {:?}", x, y, z, old_state, active_count, new_state);
-    //             result.set(&loc, &new_state);
-    //         }
-    //     }
-    // }
+    for loc in new_capacity.into_iter() {
+        let old_state = prev.get(&loc);
+        let active_count = prev.active_neighbors(&loc);
+        let is_active =
+            match old_state {
+                CubeState::Active => (2 <= active_count && active_count <= 3),
+                CubeState::Inactive => (active_count == 3),
+            };
+        if is_active {
+            result.set_active(&loc);
+        }
+    }
+
     result
 }
 
-fn parse_initial_state(text: &str) -> State {
+fn parse_initial_state(text: &str, dimensions: usize) -> State {
     let lines: Vec<&str> = text.split("\n").filter(|l| ! l.is_empty()).collect();
     let col_count = lines[0].len() as i32;
     let row_count = lines.len() as i32;
-    let capacity = Volume {
-        ranges: vec![0..col_count, 0..row_count, 0..1]
+    let ranges = {
+        let mut ranges = vec![0..col_count, 0..row_count];
+        for _ in 2..dimensions {
+            ranges.push(0..1);
+        }
+        ranges
     };
+    let capacity = Volume { ranges };
     println!("capacity: {:?}", capacity);
     let mut result = State::new(&capacity);
     for (y, line) in (&lines).iter().enumerate() {
@@ -288,23 +269,25 @@ fn parse_initial_state(text: &str) -> State {
     result
 }
 
+/// Prints out a State in the format used on the web site
+/// 
+/// TODO: generalize to N dimensions
 fn print_state(state: &State) {
     let size = state.size.as_ref().unwrap();
     println!("size = {:?}", size);
-    // TODO
-    // for z in size.z.clone() {
-    //     println!("z={}", z);
-    //     for y in size.y.clone() {
-    //         for x in size.x.clone() {
-    //             let loc = Location{x, y, z};
-    //             let s = state.get(&loc);
-    //             let c = if s == CubeState::Active { '#' } else { '.' };
-    //             print!("{}", c);
-    //         }
-    //         println!("");
-    //     }
-    //     println!("");
-    // }
+    for z in size.ranges[2].clone() {
+        println!("z={}", z);
+        for y in size.ranges[1].clone() {
+            for x in size.ranges[0].clone() {
+                let loc = Location{ coords: vec![x, y, z]};
+                let s = state.get(&loc);
+                let c = if s == CubeState::Active { '#' } else { '.' };
+                print!("{}", c);
+            }
+            println!("");
+        }
+        println!("");
+    }
 }
 
 const TEST_STATE: &str = "
@@ -324,8 +307,8 @@ const MY_INPUT: &str = "
 .####..#
 ";
 
-fn run_one(initial: &str) {
-    let mut state = parse_initial_state(initial);
+fn run_one(initial: &str, dimensions: usize) {
+    let mut state = parse_initial_state(initial, dimensions);
     println!("Initial state:");
     print_state(&state);
 
@@ -358,7 +341,7 @@ fn main() {
     }
 
     {
-        let initial = parse_initial_state(TEST_STATE);
+        let initial = parse_initial_state(TEST_STATE, 3);
         let mut expected = State::new(&Volume { ranges: vec![0..3, 0..3, 0..1] });
         expected.set_active(&expected.x_y_loc(1, 0));
         expected.set_active(&expected.x_y_loc(2, 1));
@@ -368,6 +351,6 @@ fn main() {
         assert_eq!(initial, expected);
     }
 
-    // run_one(TEST_STATE);
-    // run_one(MY_INPUT);
+    run_one(TEST_STATE, 3);
+    run_one(MY_INPUT, 4);
 }
