@@ -38,9 +38,7 @@ fn eval_until_end_or_paren(chars: &mut dyn Iterator<Item = char>) -> i64 {
                     let rhs = eval_primary(chars);
                     match c {
                         '+' => result = result + rhs,
-                        '-' => result = result - rhs,
                         '*' => result = result * rhs,
-                        '/' => result = result / rhs,
                         _ => panic!("unknown op: {:?}", c),
                     }
                 }
