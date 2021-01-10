@@ -46,48 +46,58 @@ fn apply_op(op: char, a: i64, b: i64) -> i64 {
     }
 }
 
-
-/// Evaluates a "primary", which is either a number or a 
-/// parenthesized expression
-fn eval_primary(chars: &mut Reader) -> i64 {
-    let c = chars.current().unwrap();
-    chars.advance();
-    if c == '(' {
-        let result = eval_until_end_or_paren(chars);
-        chars.expect_and_skip(')');
-        result
-    } else if c.is_digit(10) {
-        c.to_digit(10).unwrap() as i64
-    } else {
-        panic!("bad char starting primary: {:?}", c);
-    }
+struct Evaluator {
+    /// Sets of operators, by precedence, with least tightly binding first
+    op_levels: Vec<Vec<char>>,
 }
 
-/// Evaluates an expression, going until reaching the end of the
-/// input, or a closing paren.
-fn eval_until_end_or_paren(chars: &mut Reader) -> i64 {
-    let mut result = eval_primary(chars);
-    loop {
-        match chars.current() {
-            None => break,
-            Some(c) => {
-                if c == '+' || c == '*' {
-                    chars.advance();
-                    result = apply_op(c, result, eval_primary(chars));
-                } else {
-                    break
-                }
-            }
+impl Evaluator {
+    /// Evaluates a "primary", which is either a number or a 
+    /// parenthesized expression
+    fn eval_primary(&self, chars: &mut Reader) -> i64 {
+        let c = chars.current().unwrap();
+        chars.advance();
+        if c == '(' {
+            let result = self.eval_ops(0, chars);
+            chars.expect_and_skip(')');
+            result
+        } else if c.is_digit(10) {
+            c.to_digit(10).unwrap() as i64
+        } else {
+            panic!("bad char starting primary: {:?}", c);
         }
     }
-    result
-}
 
-/// Evaluates a string containing a complete expression.
-fn eval_string(expr: &str) -> i64 {
-    let mut non_space_chars = expr.chars().filter(|c| *c != ' ');
-    let mut reader = Reader::new(&mut non_space_chars);
-    eval_until_end_or_paren(&mut reader)
+    /// Evaluates an expression, going until reaching the end of the
+    /// input, or a closing paren.
+    fn eval_ops(&self, level: usize, chars: &mut Reader) -> i64 {
+        if level == self.op_levels.len() {
+            self.eval_primary(chars)
+        } else {
+            let mut result = self.eval_ops(level + 1, chars);
+            loop {
+                match chars.current() {
+                    None => break,
+                    Some(c) => {
+                        if self.op_levels[level].contains(&c) {
+                            chars.advance();
+                            result = apply_op(c, result, self.eval_ops(level + 1, chars));
+                        } else {
+                            break
+                        }
+                    },
+                }
+            }
+            result
+        }
+    }
+
+    /// Evaluates a string containing a complete expression.
+    fn eval_string(&self, expr: &str) -> i64 {
+        let mut non_space_chars = expr.chars().filter(|c| *c != ' ');
+        let mut reader = Reader::new(&mut non_space_chars);
+        self.eval_ops(0, &mut reader)
+    }
 }
 
 /// Returns an iterator over the lines in a file.
@@ -97,15 +107,27 @@ fn lines_in_file(file_name: &str) -> Box<dyn Iterator<Item = String>> {
     Box::new(reader.lines().map(|r| r.unwrap()))
 }
 
-fn main() {
-    assert_eq!(eval_string("5"), 5);
-    assert_eq!(eval_string("2 * 3 + (4 * 5)"), 26);
-    assert_eq!(eval_string("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2"), 13632);
+fn eval_input(evaluator: &Evaluator) -> i64 {
+    lines_in_file("input.txt")
+        .map(|line| evaluator.eval_string(&line))
+        .sum()
+}
 
-    let part1: i64 =
-        lines_in_file("input.txt")
-            .map(|line| eval_string(&line))
-            .sum();
+fn main() {
+    let part1_eval = Evaluator { op_levels: vec![ vec!['+', '*'] ] };
+    assert_eq!(part1_eval.eval_string("5"), 5);
+    assert_eq!(part1_eval.eval_string("2 * 3 + (4 * 5)"), 26);
+    assert_eq!(part1_eval.eval_string("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2"), 13632);
+
+    let part1: i64 = eval_input(&part1_eval);
     println!("Part 1: {:?}", part1);
     assert_eq!(part1, 6811433855019);
+
+    let part2_eval = Evaluator { op_levels: vec![ vec!['*'], vec!['+'] ] };
+    assert_eq!(part2_eval.eval_string("5"), 5);
+    assert_eq!(part2_eval.eval_string("2 * 3 + (4 * 5)"), 46);
+    assert_eq!(part2_eval.eval_string("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2"), 23340);
+
+    let part1: i64 = eval_input(&part2_eval);
+    println!("Part 2: {:?}", part1);
 }
