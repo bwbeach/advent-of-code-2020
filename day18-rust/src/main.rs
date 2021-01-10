@@ -10,13 +10,43 @@
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 
+/// A reader with lookahead.  Unlike a streaming iterator,
+/// this returns a copy of the current value.
+struct Reader<'a> {
+    iter: &'a mut dyn Iterator<Item = char>,
+    curr: Option<char>,
+}
+
+impl<'a> Reader<'a> {
+    fn new(iter: &'a mut dyn Iterator<Item = char>) -> Self {
+        let curr = iter.next();
+        Reader { iter, curr }
+    }
+
+    fn current(&self) -> Option<char> {
+        self.curr
+    }
+
+    fn advance(&mut self) {
+        self.curr = self.iter.next()
+    }
+
+    fn expect_and_skip(&mut self, c: char) {
+        assert!(self.curr.unwrap() == c);
+        self.advance();
+    }
+}
+
 
 /// Evaluates a "primary", which is either a number or a 
 /// parenthesized expression
-fn eval_primary(chars: &mut dyn Iterator<Item = char>) -> i64 {
-    let c = chars.next().unwrap();
+fn eval_primary(chars: &mut Reader) -> i64 {
+    let c = chars.current().unwrap();
+    chars.advance();
     if c == '(' {
-        eval_until_end_or_paren(chars)
+        let result = eval_until_end_or_paren(chars);
+        chars.expect_and_skip(')');
+        result
     } else if c.is_digit(10) {
         c.to_digit(10).unwrap() as i64
     } else {
@@ -26,21 +56,22 @@ fn eval_primary(chars: &mut dyn Iterator<Item = char>) -> i64 {
 
 /// Evaluates an expression, going until reaching the end of the
 /// input, or a closing paren.
-fn eval_until_end_or_paren(chars: &mut dyn Iterator<Item = char>) -> i64 {
+fn eval_until_end_or_paren(chars: &mut Reader) -> i64 {
     let mut result = eval_primary(chars);
     loop {
-        match chars.next() {
+        match chars.current() {
             None => break,
             Some(c) => {
-                if c == ')' {
-                    break
-                } else {
+                if c == '+' || c == '*' {
+                    chars.advance();
                     let rhs = eval_primary(chars);
                     match c {
                         '+' => result = result + rhs,
                         '*' => result = result * rhs,
-                        _ => panic!("unknown op: {:?}", c),
+                        _ => panic!("BUG")
                     }
+                } else {
+                    break
                 }
             }
         }
@@ -51,7 +82,8 @@ fn eval_until_end_or_paren(chars: &mut dyn Iterator<Item = char>) -> i64 {
 /// Evaluates a string containing a complete expression.
 fn eval_string(expr: &str) -> i64 {
     let mut non_space_chars = expr.chars().filter(|c| *c != ' ');
-    eval_until_end_or_paren(&mut non_space_chars)
+    let mut reader = Reader::new(&mut non_space_chars);
+    eval_until_end_or_paren(&mut reader)
 }
 
 /// Returns an iterator over the lines in a file.
