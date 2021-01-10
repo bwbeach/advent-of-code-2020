@@ -11,7 +11,7 @@ use std::io::{BufRead, BufReader};
 use std::fs::File;
 
 /// A reader with lookahead.  Unlike a streaming iterator,
-/// this returns a copy of the current value.
+/// this returns a copy of the current value, not a ref to it.
 struct Reader<'a> {
     iter: &'a mut dyn Iterator<Item = char>,
     curr: Option<char>,
@@ -34,6 +34,15 @@ impl<'a> Reader<'a> {
     fn expect_and_skip(&mut self, c: char) {
         assert!(self.curr.unwrap() == c);
         self.advance();
+    }
+}
+
+/// Applies an operator to two arguments
+fn apply_op(op: char, a: i64, b: i64) -> i64 {
+    match op {
+        '+' => a + b,
+        '*' => a * b,
+        _ => panic!("unknown op: {:?}", op),
     }
 }
 
@@ -64,12 +73,7 @@ fn eval_until_end_or_paren(chars: &mut Reader) -> i64 {
             Some(c) => {
                 if c == '+' || c == '*' {
                     chars.advance();
-                    let rhs = eval_primary(chars);
-                    match c {
-                        '+' => result = result + rhs,
-                        '*' => result = result * rhs,
-                        _ => panic!("BUG")
-                    }
+                    result = apply_op(c, result, eval_primary(chars));
                 } else {
                     break
                 }
