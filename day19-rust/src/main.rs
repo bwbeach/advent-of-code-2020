@@ -106,12 +106,62 @@ fn generate_regex(input: &Input) -> String {
     result
 }
 
+type StrPred<'a> = &'a mut dyn FnMut(&str) -> bool;
+
+fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &mut StrPred, text: &str) -> bool
+{
+    if numbers.is_empty() {
+        remaining(text)
+    } else {
+        let mut match_rest: StrPred = 
+            &mut |subtext| 
+                match_rule_numbers(input, &numbers[1..], remaining, subtext); 
+        match_part_2(
+            input, 
+            input.rules.get(&numbers[0]).unwrap(), 
+            &mut match_rest,
+            text
+        )
+    }
+}
+
+fn match_part_2(input: &Input, pattern: &Pattern, remaining: &mut StrPred, text: &str) -> bool
+{
+    match pattern {
+        Pattern::Text(s) => {
+            if text.starts_with(s) {
+                remaining(&text[s.len()..])
+            } else {
+                false
+            }
+        },
+        Pattern::Choices(choices) => {
+            choices.iter().any(
+                |choice| match_part_2(input, choice, remaining, text)
+            )
+        },
+        Pattern::RuleNumbers(numbers) => {
+            match_rule_numbers(input, numbers, remaining, text)
+        }
+    }
+}
+
 fn run_part1(input_path: &str) -> usize {
-    let input_string = read_to_string(input_path).unwrap();
-    let input = parse_input(&input_string);
+    let text = read_to_string(input_path).unwrap();
+    let input = parse_input(&text);
     let re = Regex::new(&generate_regex(&input)).unwrap();
     input.messages.iter()
         .filter(|m| re.is_match(m))
+        .count()
+}
+
+fn run_part2(input_path: &str) -> usize {
+    let text = read_to_string(input_path).unwrap();
+    let input = parse_input(&text);
+    let rule0 = &input.rules[&0];
+    let mut match_empty: StrPred = &mut |t| t.is_empty();
+    input.messages.iter()
+        .filter(|m| match_part_2(&input, rule0, &mut match_empty, m))
         .count()
 }
 
@@ -129,7 +179,20 @@ fn main() {
              )
         )
     );
+
+
+    let sample_text = read_to_string("sample.txt").unwrap();
+    let sample = parse_input(&sample_text);
+    let mut match_empty: StrPred = &mut |t| t.is_empty();
+    let a = String::from("a");
+    assert_eq!(match_part_2(&sample, &Pattern::Text(&a), &mut match_empty, "a"), true);
+    assert_eq!(match_part_2(&sample, &Pattern::RuleNumbers(vec![4]), &mut match_empty, "a"), true);
+    assert_eq!(match_part_2(&sample, &Pattern::RuleNumbers(vec![4, 5]), &mut match_empty, "ab"), true);
     
     println!("Sample: {:?}", run_part1("sample.txt"));
-    println!("Part 1: {:?}", run_part1("input.txt")); // 203
+    println!("Part 1:  {:?}", run_part1("input.txt")); // 203
+    println!("Sample b: {:?}", run_part2("sample.txt"));
+    println!("Part 1b: {:?}", run_part2("input.txt")); // 203
+    
+    
 }
