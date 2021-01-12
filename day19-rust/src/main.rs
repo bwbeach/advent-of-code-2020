@@ -12,20 +12,21 @@ fn split_pair<'a>(s: &'a str, pattern: &str) -> (&'a str, &'a str) {
 }
 
 #[derive(Debug, PartialEq)]
-enum Pattern<'a> {
-    Text(&'a str),
-    Choices(Vec<Pattern<'a>>),
+enum Pattern {
+    Text(String),
+    Choices(Vec<Pattern>),
     RuleNumbers(Vec<usize>),
 }
 
-fn parse_pattern<'a>(text: &'a str) -> Pattern<'a> {
+fn parse_pattern<'a>(text: &'a str) -> Pattern {
     // lazy_static! {
     //     static ref TEXT_PATTERN: Regex = Regex::new("\"(.*)\"").unwrap();
     // }
     let text_pattern = Regex::new("\"(.*)\"").unwrap();
     if text_pattern.is_match(text) {
         let captures = text_pattern.captures(text).unwrap();
-        Pattern::Text(captures.get(1).unwrap().as_str())
+        let text = captures.get(1).unwrap().as_str();
+        Pattern::Text(String::from(text))
     } else if text.contains("|") {
         Pattern::Choices(
             text.split("|").map(|s| parse_pattern(s.trim())).collect()
@@ -39,7 +40,7 @@ fn parse_pattern<'a>(text: &'a str) -> Pattern<'a> {
     }
 }
 
-fn parse_rule<'a>(text: &'a str) -> (usize, Pattern<'a>) {
+fn parse_rule(text: &str) -> (usize, Pattern) {
 
     let (num_str, rhs) = split_pair(text, ":");
     let num = num_str.parse::<usize>().unwrap();
@@ -47,8 +48,8 @@ fn parse_rule<'a>(text: &'a str) -> (usize, Pattern<'a>) {
 }
 
 #[derive(Debug)]
-struct Input<'a> {
-    rules: HashMap<usize, Pattern<'a>>,
+struct Input {
+    rules: HashMap<usize, Pattern>,
     messages: Vec<String>,
 }
 
@@ -166,7 +167,7 @@ fn run_part2(input_path: &str) -> usize {
 }
 
 fn main() {
-    assert_eq!(parse_rule("121: \"a\""), (121, Pattern::Text("a")));
+    assert_eq!(parse_rule("121: \"a\""), (121, Pattern::Text(String::from("a"))));
     assert_eq!(
         parse_rule("124: 121 125 | 48 121"), 
         (
@@ -184,8 +185,7 @@ fn main() {
     let sample_text = read_to_string("sample.txt").unwrap();
     let sample = parse_input(&sample_text);
     let mut match_empty: StrPred = &mut |t| t.is_empty();
-    let a = String::from("a");
-    assert_eq!(match_part_2(&sample, &Pattern::Text(&a), &mut match_empty, "a"), true);
+    assert_eq!(match_part_2(&sample, &Pattern::Text(String::from("a")), &mut match_empty, "a"), true);
     assert_eq!(match_part_2(&sample, &Pattern::RuleNumbers(vec![4]), &mut match_empty, "a"), true);
     assert_eq!(match_part_2(&sample, &Pattern::RuleNumbers(vec![4, 5]), &mut match_empty, "ab"), true);
     
@@ -194,5 +194,5 @@ fn main() {
     println!("Sample b: {:?}", run_part2("sample.txt"));
     println!("Part 1b: {:?}", run_part2("input.txt")); // 203
     
-    
+
 }
