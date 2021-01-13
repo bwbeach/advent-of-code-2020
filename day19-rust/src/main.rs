@@ -76,37 +76,6 @@ fn parse_input(text: &str) -> Input {
     Input { rules, messages }
 }
 
-fn append_regex_to(input: &Input, pattern: &Pattern, output: &mut String) {
-    match pattern {
-        Pattern::Text(s) => {
-            output.push_str(s);
-        },
-        Pattern::Choices(choices) => {
-            output.push_str("(");
-            for (i, choice) in choices.iter().enumerate() {
-                if i != 0 {
-                    output.push_str("|");
-                }
-                append_regex_to(input, choice, output);
-            }
-            output.push_str(")");
-        },
-        Pattern::RuleNumbers(numbers) => {
-            for n in numbers {
-                append_regex_to(input, input.rules.get(n).unwrap(), output);
-            }
-        }
-    }
-}
-
-fn generate_regex(input: &Input) -> String {
-    let mut result = String::new();
-    result.push_str("^");
-    append_regex_to(input, input.rules.get(&0).unwrap(), &mut result);
-    result.push_str("$");
-    result
-}
-
 type StrPred<'a> = &'a dyn Fn(&str) -> bool;
 
 fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &StrPred, text: &str) -> bool
@@ -153,14 +122,6 @@ fn parse_input_file(file_name: &str) -> Input {
 }
 
 fn run_part1(input_path: &str) -> usize {
-    let input = parse_input_file(input_path);
-    let re = Regex::new(&generate_regex(&input)).unwrap();
-    input.messages.iter()
-        .filter(|m| re.is_match(m))
-        .count()
-}
-
-fn run_new_match_on_part1(input_path: &str) -> usize {
     let input = parse_input_file(&input_path);
     let rule0 = &input.rules[&0];
     let mut match_empty: StrPred = &mut |t| t.is_empty();
@@ -221,8 +182,8 @@ fn main() {
     
     println!("Sample: {:?}", run_part1("sample.txt"));
     println!("Part 1:  {:?}", run_part1("input.txt")); // 203
-    println!("Sample b: {:?}", run_new_match_on_part1("sample.txt"));
-    println!("Part 1b: {:?}", run_new_match_on_part1("input.txt")); // 203
+    println!("Sample b: {:?}", run_part1("sample.txt"));
+    println!("Part 1b: {:?}", run_part1("input.txt")); // 203
 
     println!("Sample 2: {:?}", run_part2("sample2.txt")); // 12
     println!("Part 2: {:?}", run_part2("input.txt")); // 304
