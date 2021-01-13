@@ -107,9 +107,9 @@ fn generate_regex(input: &Input) -> String {
     result
 }
 
-type StrPred<'a> = &'a mut dyn FnMut(&str) -> bool;
+type StrPred<'a> = &'a dyn Fn(&str) -> bool;
 
-fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &mut StrPred, text: &str) -> bool
+fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &StrPred, text: &str) -> bool
 {
     if numbers.is_empty() {
         remaining(text)
@@ -225,5 +225,5 @@ fn main() {
     println!("Part 1b: {:?}", run_new_match_on_part1("input.txt")); // 203
 
     println!("Sample 2: {:?}", run_part2("sample2.txt")); // 12
-    println!("Part 2: {:?}", run_part2("input.txt"));
+    println!("Part 2: {:?}", run_part2("input.txt")); // 304
 }
