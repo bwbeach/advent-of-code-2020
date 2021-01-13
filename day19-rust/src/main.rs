@@ -86,7 +86,7 @@ fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &StrPred, tex
         let mut match_rest: StrPred = 
             &mut |subtext| 
                 match_rule_numbers(input, &numbers[1..], remaining, subtext); 
-        match_part_2(
+        match_pattern(
             input, 
             input.rules.get(&numbers[0]).unwrap(), 
             &mut match_rest,
@@ -95,7 +95,7 @@ fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &StrPred, tex
     }
 }
 
-fn match_part_2(input: &Input, pattern: &Pattern, remaining: &mut StrPred, text: &str) -> bool
+fn match_pattern(input: &Input, pattern: &Pattern, remaining: &mut StrPred, text: &str) -> bool
 {
     match pattern {
         Pattern::Text(s) => {
@@ -107,7 +107,7 @@ fn match_part_2(input: &Input, pattern: &Pattern, remaining: &mut StrPred, text:
         },
         Pattern::Choices(choices) => {
             choices.iter().any(
-                |choice| match_part_2(input, choice, remaining, text)
+                |choice| match_pattern(input, choice, remaining, text)
             )
         },
         Pattern::RuleNumbers(numbers) => {
@@ -126,7 +126,7 @@ fn run_part1(input_path: &str) -> usize {
     let rule0 = &input.rules[&0];
     let mut match_empty: StrPred = &mut |t| t.is_empty();
     input.messages.iter()
-        .filter(|m| match_part_2(&input, rule0, &mut match_empty, m))
+        .filter(|m| match_pattern(&input, rule0, &mut match_empty, m))
         .count()
 }
 
@@ -153,7 +153,7 @@ fn run_part2(input_path: &str) -> usize {
     let rule0 = &input.rules[&0];
     let mut match_empty: StrPred = &mut |t| t.is_empty();
     input.messages.iter()
-        .filter(|m| match_part_2(&input, rule0, &mut match_empty, m))
+        .filter(|m| match_pattern(&input, rule0, &mut match_empty, m))
         .count()
 }
 
@@ -176,14 +176,12 @@ fn main() {
     let sample_text = read_to_string("sample.txt").unwrap();
     let sample = parse_input(&sample_text);
     let mut match_empty: StrPred = &mut |t| t.is_empty();
-    assert_eq!(match_part_2(&sample, &Pattern::Text(String::from("a")), &mut match_empty, "a"), true);
-    assert_eq!(match_part_2(&sample, &Pattern::RuleNumbers(vec![4]), &mut match_empty, "a"), true);
-    assert_eq!(match_part_2(&sample, &Pattern::RuleNumbers(vec![4, 5]), &mut match_empty, "ab"), true);
+    assert_eq!(match_pattern(&sample, &Pattern::Text(String::from("a")), &mut match_empty, "a"), true);
+    assert_eq!(match_pattern(&sample, &Pattern::RuleNumbers(vec![4]), &mut match_empty, "a"), true);
+    assert_eq!(match_pattern(&sample, &Pattern::RuleNumbers(vec![4, 5]), &mut match_empty, "ab"), true);
     
     println!("Sample: {:?}", run_part1("sample.txt"));
     println!("Part 1:  {:?}", run_part1("input.txt")); // 203
-    println!("Sample b: {:?}", run_part1("sample.txt"));
-    println!("Part 1b: {:?}", run_part1("input.txt")); // 203
 
     println!("Sample 2: {:?}", run_part2("sample2.txt")); // 12
     println!("Part 2: {:?}", run_part2("input.txt")); // 304
