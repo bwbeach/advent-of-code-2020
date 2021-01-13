@@ -83,19 +83,19 @@ fn match_rule_numbers(input: &Input, numbers: &[usize], remaining: &StrPred, tex
     if numbers.is_empty() {
         remaining(text)
     } else {
-        let mut match_rest: StrPred = 
-            &mut |subtext| 
+        let match_rest: StrPred = 
+            &|subtext| 
                 match_rule_numbers(input, &numbers[1..], remaining, subtext); 
         match_pattern(
             input, 
             input.rules.get(&numbers[0]).unwrap(), 
-            &mut match_rest,
+            &match_rest,
             text
         )
     }
 }
 
-fn match_pattern(input: &Input, pattern: &Pattern, remaining: &mut StrPred, text: &str) -> bool
+fn match_pattern(input: &Input, pattern: &Pattern, remaining: &StrPred, text: &str) -> bool
 {
     match pattern {
         Pattern::Text(s) => {
