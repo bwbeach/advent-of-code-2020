@@ -57,24 +57,10 @@ impl Tile {
         Tile { number, pixels, top, right, bottom, left }
     }
 
-    fn rotate(&self) -> Tile {
-        Tile::new(self.number, self.pixels.rotate())
-    }
-
-    fn flip(&self) -> Tile {
-        Tile::new(self.number, self.pixels.flip())
-    }
-
     fn positions(&self) -> Vec<Tile> {
-        let a = self.clone();
-        let b = a.rotate();
-        let c = b.rotate();
-        let d = c.rotate();
-        let e = a.flip();
-        let f = e.rotate();
-        let g = f.rotate();
-        let h = g.rotate();
-        vec![a, b, c, d, e, f, g, h]
+        self.pixels.positions().into_iter()
+            .map(|g| Tile::new(self.number, g))
+            .collect()
     }
 }
 
@@ -285,6 +271,19 @@ impl<T: Clone> Grid<T> {
             }
         }
         Grid::from_vec(elems)
+    }
+
+    /// Returns grids for all rotations and reflections of this one.
+    fn positions(&self) -> Vec<Grid<T>> {
+        let a = self.clone();
+        let b = a.rotate();
+        let c = b.rotate();
+        let d = c.rotate();
+        let e = a.flip();
+        let f = e.rotate();
+        let g = f.rotate();
+        let h = g.rotate();
+        vec![a, b, c, d, e, f, g, h]
     }
 }
 
