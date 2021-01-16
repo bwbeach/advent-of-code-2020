@@ -132,11 +132,20 @@ impl<'a> TileIndex<'a> {
     }
 }
 
-/// A position within a Grid.  It's up to the Grid to decide
-/// how to interpret the number.
+/// An x-y position within a Grid.
+/// 
+/// A GridPos is created only by a Grid, which ensures that
+/// the coordinates are valid.
 #[derive(Copy, Clone)]
-enum GridPos {
-    Index(usize),
+struct GridPos {
+    x: usize,
+    y: usize,
+}
+
+impl GridPos {
+    fn new(x: usize, y: usize) -> GridPos {
+        GridPos{ x, y }
+    }
 }
 
 /// A square grid of things
@@ -157,45 +166,47 @@ impl<T: Clone> Grid<T> {
 
     /// Returns the first cell in the grid, the one at the top left.
     fn first(&self) -> GridPos {
-        GridPos::Index(0)
+        GridPos::new(0, 0)
     }
 
     /// Returns the next cell after the given one, in the order
     /// they are filled in: left-to-right, top-to-bottom.
-    fn next(&self, GridPos::Index(n): GridPos) -> Option<GridPos> {
-        if n < self.size * self.size - 1 {
-            Some(GridPos::Index(n + 1))
+    fn next(&self, p: GridPos) -> Option<GridPos> {
+        if p.x < self.size - 1 {
+            Some(GridPos::new(p.x + 1, p.y))
+        } else if p.y < self.size - 1 {
+            Some(GridPos::new(0, p.y + 1))
         } else {
             None
         }
     }
 
     /// Returns the cell above the given one.
-    fn up(&self, GridPos::Index(n): GridPos) -> Option<GridPos> {
-        if self.size <= n {
-            Some(GridPos::Index(n - self.size))
+    fn up(&self, p: GridPos) -> Option<GridPos> {
+        if 0 < p.y {
+            Some(GridPos::new(p.x, p.y - 1))
         } else {
             None
         }
     }
 
     /// Returns the cell above the given one.
-    fn left(&self, GridPos::Index(n): GridPos) -> Option<GridPos> {
-        if n % self.size != 0 {
-            Some(GridPos::Index(n - 1))
+    fn left(&self, p: GridPos) -> Option<GridPos> {
+        if 0 < p.x {
+            Some(GridPos::new(p.x - 1, p.y))
         } else {
             None
         }
     }
 
     /// Stores a value in a cell in the grid
-    fn set(&mut self, GridPos::Index(n): GridPos, value: T) {
-        self.items[n] = value;
+    fn set(&mut self, p: GridPos, value: T) {
+        self.items[p.x + self.size * p.y] = value;
     }
 
     /// Stores a value in a cell in the grid
-    fn get(&self, GridPos::Index(n): GridPos) -> &T {
-        &self.items[n]
+    fn get(&self, p: GridPos) -> &T {
+        &self.items[p.x + self.size * p.y]
     }
 
     /// Return the things at the four corners of the grid
