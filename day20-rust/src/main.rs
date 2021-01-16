@@ -45,6 +45,7 @@ fn test_reverse_edge() {
 #[derive(Clone, Eq, PartialEq)]
 struct Tile {
     number: usize,    // which tile is this?
+    pixels: Grid<u8>, // the array of pixels in this tile
     top: Edge,        // left-to-right
     right: Edge,      // top-to-bottom
     bottom: Edge,     // left-to-right
@@ -61,6 +62,7 @@ impl Tile {
     fn rotate(&self) -> Tile {
         Tile {
             number: self.number,
+            pixels: self.pixels.rotate(),
             top: self.left.reverse(),
             right: self.top.clone(),
             bottom: self.right.reverse(),
@@ -71,6 +73,7 @@ impl Tile {
     fn flip(&self) -> Tile {
         Tile {
             number: self.number,
+            pixels: self.pixels.flip(),
             top: self.top.reverse(),
             right: self.left.clone(),
             bottom: self.bottom.reverse(),
@@ -97,12 +100,17 @@ fn last_byte(s: &str) -> u8 {
 }
 
 fn parse_tile(text: &str) -> Tile {
-    let mut lines = text.split("\n").filter(|s| ! s.is_empty());
+    let mut lines_iter = text.split("\n").filter(|s| ! s.is_empty());
 
-    let header = lines.next().unwrap();
+    let header = lines_iter.next().unwrap();
     let tile_num = header[5..9].parse::<usize>().unwrap();
 
-    let tile_lines: Vec<_> = lines.collect();
+    let tile_lines: Vec<_> = lines_iter.collect();
+    let tile_bytes: Vec<u8> = 
+        tile_lines.iter()
+            .flat_map(|line| line.as_bytes().iter())
+            .map(|&b| b)
+            .collect();
 
     let top = tile_lines[0].as_bytes();
     let right: Vec<u8> = tile_lines.iter().map(|s| last_byte(s)).collect();
@@ -111,6 +119,7 @@ fn parse_tile(text: &str) -> Tile {
 
     Tile {
         number: tile_num,
+        pixels: Grid::from_vec(tile_bytes),
         top: Edge::new(top),
         right: Edge::new(&right),
         bottom: Edge::new(bottom),
@@ -124,6 +133,7 @@ fn test_parse_tile() {
         parse_tile("Tile 1234:\n##..\n...#\n....\n..#.\n"),
         Tile {
             number: 1234,
+            pixels: Grid::from_vec(b"##.....#......#.".to_vec()),
             top: Edge::new(b"##.."),
             right: Edge::new(b".#.."),
             bottom: Edge::new(b"..#."),
