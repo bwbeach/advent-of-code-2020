@@ -1,8 +1,20 @@
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Formatter;
 use std::fs::read_to_string;
+
+/// Returns the square root of a usize.
+/// Panics if the number is not a perfect square.
+fn usize_sqrt(n: usize) -> usize {
+    let result = (n as f64).sqrt().round() as usize;
+    assert_eq!(result * result, n);
+    result
+}
+
+#[test]
+fn test_usize_sqrt() {
+    assert_eq!(usize_sqrt(64), 8);
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Edge {
@@ -23,13 +35,20 @@ impl Edge {
     }
 }
 
+#[test]
+fn test_reverse_edge() {
+    let edge1 = Edge::new("#.#".as_bytes());
+    assert_eq!(edge1, edge1.reverse());
+    assert_eq!(Edge::new(b"#.#...").reverse().bytes, b"...#.#");
+}
+
 #[derive(Clone, Eq, PartialEq)]
 struct Tile {
-    number: usize, // which tile is this?
-    top: Edge,     // left-to-right
-    right: Edge,   // top-to-bottom
-    bottom: Edge,  // left-to-right
-    left: Edge,    // top-to-bottom
+    number: usize,    // which tile is this?
+    top: Edge,        // left-to-right
+    right: Edge,      // top-to-bottom
+    bottom: Edge,     // left-to-right
+    left: Edge,       // top-to-bottom
 }
 
 impl std::fmt::Debug for Tile {
@@ -99,6 +118,20 @@ fn parse_tile(text: &str) -> Tile {
     }
 }
 
+#[test]
+fn test_parse_tile() {
+    assert_eq!(
+        parse_tile("Tile 1234:\n##..\n...#\n....\n..#.\n"),
+        Tile {
+            number: 1234,
+            top: Edge::new(b"##.."),
+            right: Edge::new(b".#.."),
+            bottom: Edge::new(b"..#."),
+            left: Edge::new(b"#..."),
+        }
+    );
+}
+
 fn read_input(file_name: &str) -> Vec<Tile> {
     read_to_string(file_name)
         .unwrap()
@@ -107,37 +140,37 @@ fn read_input(file_name: &str) -> Vec<Tile> {
         .collect()
 }
 
-struct TileLibrary {
-    orientations: Vec<Tile>
-}
+// struct TileLibrary {
+//     orientations: Vec<Tile>
+// }
 
-impl TileLibrary {
-    fn new() -> TileLibrary {
-        TileLibrary {
-            orientations: Vec::new(),
-        }
-    }
+// impl TileLibrary {
+//     fn new() -> TileLibrary {
+//         TileLibrary {
+//             orientations: Vec::new(),
+//         }
+//     }
 
-    fn insert(&mut self, tile: &Tile) {
-        for option in tile.positions() {
-            self.orientations.push(option);
-        }
-    }
-}
+//     fn insert(&mut self, tile: &Tile) {
+//         for option in tile.positions() {
+//             self.orientations.push(option);
+//         }
+//     }
+// }
 
-struct TileIndex<'a> {
-    left_to_orientation: HashMap<&'a Edge, &'a Tile>,
-    top_to_orientation: HashMap<&'a Edge, &'a Tile>,
-}
+// struct TileIndex<'a> {
+//     left_to_orientation: HashMap<&'a Edge, &'a Tile>,
+//     top_to_orientation: HashMap<&'a Edge, &'a Tile>,
+// }
 
-impl<'a> TileIndex<'a> {
-    fn new(orientations: &Vec<Tile>) -> TileIndex {
-        TileIndex {
-            left_to_orientation: orientations.iter().map(|p| (&p.left, p)).collect(),
-            top_to_orientation: orientations.iter().map(|p| (&p.top, p)).collect(),
-        } 
-    }
-}
+// impl<'a> TileIndex<'a> {
+//     fn new(orientations: &Vec<Tile>) -> TileIndex {
+//         TileIndex {
+//             left_to_orientation: orientations.iter().map(|p| (&p.left, p)).collect(),
+//             top_to_orientation: orientations.iter().map(|p| (&p.top, p)).collect(),
+//         } 
+//     }
+// }
 
 /// An x-y position within a Grid.
 /// 
@@ -156,7 +189,7 @@ impl GridPos {
 }
 
 /// A square grid of things
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 struct Grid<T> {
     /// Both the width and the height of the grid.
     size: usize,
@@ -260,16 +293,16 @@ fn solve_part1<'a, 'b>(choices: &'a Vec<&'a Tile>, grid: &'b mut Grid<Option<&'a
 }
 
 fn part1(file_name: &str) {
+    let tiles_from_input = read_input(file_name);
+    let size = usize_sqrt(tiles_from_input.len());
+
     let choices: Vec<Tile> =
-        read_input(file_name)
+        tiles_from_input
             .iter()
             .flat_map(|tile| tile.positions())
             .collect();
 
     let choice_refs: Vec<&Tile> = choices.iter().collect();
-
-    let size = ((choices.len() / 8) as f64).sqrt().round() as usize;
-    assert_eq!(size * size, choices.len() / 8);
 
     let mut grid: Grid<Option<&Tile>> = Grid::new(size, None);
     let mut used: HashSet<usize> = HashSet::new();
@@ -288,21 +321,6 @@ fn part1(file_name: &str) {
 }
 
 fn main() {
-    let edge1 = Edge::new("#.#".as_bytes());
-    assert_eq!(edge1, edge1.reverse());
-    assert_eq!(Edge::new(b"#.#...").reverse().bytes, b"...#.#");
-    assert_eq!(
-        parse_tile("Tile 1234:\n##..\n...#\n....\n..#.\n"),
-        Tile {
-            number: 1234,
-            top: Edge::new(b"##.."),
-            right: Edge::new(b".#.."),
-            bottom: Edge::new(b"..#."),
-            left: Edge::new(b"#..."),
-        }
-    );
-    println!("Hello, world!");
-
     part1("sample1.txt");  // 20899048083289
     part1("input.txt");  // 22878471088273
 }
