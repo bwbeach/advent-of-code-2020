@@ -1,6 +1,7 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt::Formatter;
 use std::fs::read_to_string;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -22,7 +23,7 @@ impl Edge {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 struct Tile {
     number: usize, // which tile is this?
     top: Edge,     // left-to-right
@@ -31,6 +32,12 @@ struct Tile {
     left: Edge,    // top-to-bottom
 }
 
+impl std::fmt::Debug for Tile {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        f.write_str("Tile")?;
+        self.number.fmt(f)
+    }
+}
 impl Tile {
     fn rotate(&self) -> Tile {
         Tile {
@@ -149,6 +156,7 @@ impl GridPos {
 }
 
 /// A square grid of things
+#[derive(Clone)]
 struct Grid<T> {
     /// Both the width and the height of the grid.
     size: usize,
@@ -268,9 +276,9 @@ fn part1(file_name: &str) {
     let first = grid.first();
     let second = grid.next(first).unwrap();
 
-    for c in choice_refs.iter() {
+    for &c in choice_refs.iter() {
         used.insert(c.number);
-        grid.set(first, Some(&c));
+        grid.set(first, Some(c));
         
         solve_part1(&choice_refs, &mut grid, &mut used, second);
         
