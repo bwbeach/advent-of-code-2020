@@ -27,19 +27,6 @@ impl Edge {
             bytes: Vec::from(bytes)
         }
     }
-
-    fn reverse(&self) -> Edge {
-        let mut bytes = self.bytes.clone();
-        bytes.reverse();
-        Edge { bytes }
-    }
-}
-
-#[test]
-fn test_reverse_edge() {
-    let edge1 = Edge::new("#.#".as_bytes());
-    assert_eq!(edge1, edge1.reverse());
-    assert_eq!(Edge::new(b"#.#...").reverse().bytes, b"...#.#");
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -59,26 +46,20 @@ impl std::fmt::Debug for Tile {
     }
 }
 impl Tile {
+    fn new(number: usize, pixels: Grid<u8>) -> Tile {
+        let top = Edge::new(&pixels.top_edge());
+        let right = Edge::new(&pixels.right_edge());
+        let bottom = Edge::new(&pixels.bottom_edge());
+        let left = Edge::new(&pixels.left_edge());
+        Tile { number, pixels, top, right, bottom, left }
+    }
+
     fn rotate(&self) -> Tile {
-        Tile {
-            number: self.number,
-            pixels: self.pixels.rotate(),
-            top: self.left.reverse(),
-            right: self.top.clone(),
-            bottom: self.right.reverse(),
-            left: self.bottom.clone(),
-        }
+        Tile::new(self.number, self.pixels.rotate())
     }
 
     fn flip(&self) -> Tile {
-        Tile {
-            number: self.number,
-            pixels: self.pixels.flip(),
-            top: self.top.reverse(),
-            right: self.left.clone(),
-            bottom: self.bottom.reverse(),
-            left: self.right.clone(),
-        }
+        Tile::new(self.number, self.pixels.flip())
     }
 
     fn positions(&self) -> Vec<Tile> {
@@ -94,51 +75,26 @@ impl Tile {
     }
 }
 
-fn last_byte(s: &str) -> u8 {
-    let bytes = s.as_bytes();
-    bytes[bytes.len() - 1]
-}
-
 fn parse_tile(text: &str) -> Tile {
     let mut lines_iter = text.split("\n").filter(|s| ! s.is_empty());
 
     let header = lines_iter.next().unwrap();
     let tile_num = header[5..9].parse::<usize>().unwrap();
 
-    let tile_lines: Vec<_> = lines_iter.collect();
     let tile_bytes: Vec<u8> = 
-        tile_lines.iter()
+        lines_iter 
             .flat_map(|line| line.as_bytes().iter())
             .map(|&b| b)
             .collect();
 
-    let top = tile_lines[0].as_bytes();
-    let right: Vec<u8> = tile_lines.iter().map(|s| last_byte(s)).collect();
-    let left: Vec<u8> = tile_lines.iter().map(|s| s.as_bytes()[0]).collect();
-    let bottom = tile_lines[tile_lines.len() - 1].as_bytes();
-
-    Tile {
-        number: tile_num,
-        pixels: Grid::from_vec(tile_bytes),
-        top: Edge::new(top),
-        right: Edge::new(&right),
-        bottom: Edge::new(bottom),
-        left: Edge::new(&left)
-    }
+    Tile::new(tile_num, Grid::from_vec(tile_bytes))
 }
 
 #[test]
 fn test_parse_tile() {
     assert_eq!(
         parse_tile("Tile 1234:\n##..\n...#\n....\n..#.\n"),
-        Tile {
-            number: 1234,
-            pixels: Grid::from_vec(b"##.....#......#.".to_vec()),
-            top: Edge::new(b"##.."),
-            right: Edge::new(b".#.."),
-            bottom: Edge::new(b"..#."),
-            left: Edge::new(b"#..."),
-        }
+        Tile::new(1234, Grid::from_vec(b"##.....#......#.".to_vec()))
     );
 }
 
@@ -276,6 +232,34 @@ impl<T: Clone> Grid<T> {
             self.items[self.size * (self.size - 1)].clone(),
             self.items[self.size * self.size - 1].clone()
         ]
+    }
+
+    // The top edge
+    fn top_edge(&self) -> Vec<T> {
+        (0..self.size).into_iter()
+            .map(|i| self.get(GridPos::new(i, 0)).clone())
+            .collect()
+    }
+
+    // The top edge
+    fn right_edge(&self) -> Vec<T> {
+        (0..self.size).into_iter()
+            .map(|i| self.get(GridPos::new(self.size - 1, i)).clone())
+            .collect()
+    }
+
+    // The top edge
+    fn bottom_edge(&self) -> Vec<T> {
+        (0..self.size).into_iter()
+            .map(|i| self.get(GridPos::new(i, self.size - 1)).clone())
+            .collect()
+    }
+
+    // The top edge
+    fn left_edge(&self) -> Vec<T> {
+        (0..self.size).into_iter()
+            .map(|i| self.get(GridPos::new(0, i)).clone())
+            .collect()
     }
 
     /// Rotates a grid 90 degrees clockwise
