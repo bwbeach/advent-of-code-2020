@@ -189,7 +189,7 @@ impl GridPos {
 }
 
 /// A square grid of things
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Grid<T> {
     /// Both the width and the height of the grid.
     size: usize,
@@ -200,8 +200,16 @@ struct Grid<T> {
 }
 
 impl<T: Clone> Grid<T> {
+    /// Creates a new grid of the given size, with every element
+    /// containing the same value.
     fn new(size: usize, initial_value: T) -> Grid<T> {
         let items = vec![initial_value; size * size];
+        Grid { size, items }
+    }
+
+    /// Creates a new grid, with values supplied from a slice of values.
+    fn from_vec(items: Vec<T>) -> Grid<T> {
+        let size = usize_sqrt(items.len());
         Grid { size, items }
     }
 
@@ -259,6 +267,65 @@ impl<T: Clone> Grid<T> {
             self.items[self.size * self.size - 1].clone()
         ]
     }
+
+    /// Rotates a grid 90 degrees clockwise
+    fn rotate(&self) -> Grid<T> {
+        let mut elems = Vec::new();
+        for y in 0..self.size {
+            for x in 0..self.size {
+                elems.push(self.get(GridPos::new(y, self.size - x - 1)).clone());
+            }
+        }
+        Grid::from_vec(elems)
+    }
+
+    /// Flips a grid on its vertial axis
+    fn flip(&self) -> Grid<T> {
+        let mut elems = Vec::new();
+        for y in 0..self.size {
+            for x in 0..self.size {
+                elems.push(self.get(GridPos::new(self.size - x - 1, y)).clone());
+            }
+        }
+        Grid::from_vec(elems)
+    }
+}
+
+#[test]
+fn test_rotate_grid() {
+    let original : Grid<u8> = 
+        Grid::from_vec(
+            vec![
+                1, 0, 0, 5, 
+                0, 2, 6, 0, 
+                0, 7, 3, 0,
+                8, 0, 0, 4
+            ]
+        );
+    let rotated = 
+        Grid::from_vec(
+            vec![
+                8, 0, 0, 1, 
+                0, 7, 2, 0, 
+                0, 3, 6, 0,
+                4, 0, 0, 5
+            ]
+        );
+    let flipped =
+        Grid::from_vec(
+            vec![
+                5, 0, 0, 1, 
+                0, 6, 2, 0, 
+                0, 3, 7, 0,
+                4, 0, 0, 8
+            ]
+        );
+    
+    assert_eq!(*original.get(GridPos::new(0, 0)), 1);
+    assert_eq!(*original.get(GridPos::new(3, 0)), 5);
+    assert_eq!(*original.get(GridPos::new(2, 1)), 6);
+    assert_eq!(original.rotate(), rotated);
+    assert_eq!(original.flip(), flipped);
 }
 
 fn solve_part1<'a, 'b>(choices: &'a Vec<&'a Tile>, grid: &'b mut Grid<Option<&'a Tile>>, used: &'b mut HashSet<usize>, pos: GridPos) {
