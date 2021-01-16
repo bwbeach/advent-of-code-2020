@@ -18,14 +18,17 @@ fn test_usize_sqrt() {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Edge {
-    bytes: Vec<u8>,
+    bits: usize
 }
 
 impl Edge {
     fn new(bytes: &[u8]) -> Edge {
-        Edge {
-            bytes: Vec::from(bytes)
-        }
+        let bits = bytes.iter()
+            .enumerate()
+            .filter(|(_, &b)| b == b'#')
+            .map(|(i, _)| 1usize << i)
+            .sum();
+        Edge { bits }
     }
 }
 
