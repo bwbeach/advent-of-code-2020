@@ -57,6 +57,7 @@ impl std::fmt::Debug for Tile {
         self.number.fmt(f)
     }
 }
+
 impl Tile {
     fn new(number: usize, pixels: Grid<u8>) -> Tile {
         let top = Edge::from_iter(pixels.top_edge());
@@ -153,8 +154,8 @@ impl GridPos {
 }
 
 /// A square grid of things
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct Grid<T> {
+#[derive(Clone, Eq, PartialEq)]
+struct Grid<T: std::fmt::Debug> {
     width: usize,
     height: usize,
 
@@ -163,7 +164,7 @@ struct Grid<T> {
     items: Vec<T>,
 }
 
-impl<T: Clone> Grid<T> {
+impl<T: Clone + std::fmt::Debug> Grid<T> {
     /// Creates a new grid of the given size, with every element
     /// containing the same value.
     fn new(width: usize, height: usize, initial_value: T) -> Grid<T> {
@@ -300,6 +301,18 @@ impl<T: Clone> Grid<T> {
     }
 }
 
+impl<T: std::fmt::Debug> std::fmt::Debug for Grid<T> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        for (i, item) in self.items.iter().enumerate() {
+            if i % self.width == 0 {
+                f.write_str("\n")?;
+            }
+            write!(f, "{:?}", item);
+        }
+        f.write_str("\n")
+    }
+}
+
 #[test]
 fn test_rotate_square() {
     let original : Grid<u8> = 
@@ -395,7 +408,13 @@ impl<'a, T> Iterator for EdgeIterator<'a, T> {
     }
 }
 
-fn solve_part1<'a, 'b>(choices: &'a Vec<&'a Tile>, grid: &'b mut Grid<Option<&'a Tile>>, used: &'b mut HashSet<usize>, pos: GridPos) {
+fn solve_part1<'a, 'b>(
+    choices: &'a Vec<&'a Tile>, 
+    grid: &'b mut Grid<Option<&'a Tile>>,
+    used: &'b mut HashSet<usize>,
+    pos: GridPos,
+    answers: &mut Vec<Grid<Tile>>
+) {
     for c in choices {
         if used.contains(&c.number) {
             continue;
@@ -415,10 +434,13 @@ fn solve_part1<'a, 'b>(choices: &'a Vec<&'a Tile>, grid: &'b mut Grid<Option<&'a
         used.insert(c.number);
 
         if let Some(next_pos) = grid.next(pos) {
-            solve_part1(choices, grid, used, next_pos);
+            solve_part1(choices, grid, used, next_pos, answers);
         } else {
-            let answer: usize = grid.corners().iter().map(|t| t.unwrap().number).product();
-            println!("SOLVED!  {:?}", answer);
+            let tiles: Vec<Tile> = 
+                grid.items.iter()
+                    .map(|opt| opt.unwrap().clone())
+                    .collect();
+            answers.push(Grid::from_vec(grid.width, grid.height, tiles));
         }
 
         grid.set(pos, None);
@@ -426,7 +448,7 @@ fn solve_part1<'a, 'b>(choices: &'a Vec<&'a Tile>, grid: &'b mut Grid<Option<&'a
     }
 }
 
-fn part1(file_name: &str) {
+fn part1(file_name: &str) -> Grid<Tile> {
     let tiles_from_input = read_input(file_name);
     let size = usize_sqrt(tiles_from_input.len());
 
@@ -443,18 +465,61 @@ fn part1(file_name: &str) {
     let first = grid.first();
     let second = grid.next(first).unwrap();
 
+    let mut answers = Vec::new();
+
     for &c in choice_refs.iter() {
         used.insert(c.number);
         grid.set(first, Some(c));
         
-        solve_part1(&choice_refs, &mut grid, &mut used, second);
+        solve_part1(&choice_refs, &mut grid, &mut used, second, &mut answers);
         
         used.remove(&c.number);
         grid.set(first, None);
+
+        if ! answers.is_empty() {
+            break;
+        }
     }
+
+    let answer = answers.pop().unwrap();
+    let part1_product: usize = answer.corners().iter().map(|t| t.number).product();
+    println!("Part 1: {:?}", part1_product);
+    answer
+}
+
+fn combine_tiles(tile_grid: &Grid<Tile>) -> Grid<u8> {
+    let grid_size = tile_grid.width;
+    let first_tile = tile_grid.get(tile_grid.first());
+    let tile_size = first_tile.pixels.width;
+    let useful_tile_size = tile_size - 2;
+
+    // The one-pixel border of each tile is removed before combining them.
+    let image_size = grid_size * useful_tile_size;
+
+    // Collect all of the pixes of the combined image
+    let mut image_pixels: Vec<u8> = Vec::new();
+    for y in 0..image_size {
+        for x in 0..image_size {
+            let tile = tile_grid.get(GridPos::new(x / useful_tile_size, y / useful_tile_size));
+            let pixel = tile.pixels.get(GridPos::new(x % useful_tile_size + 1, y % useful_tile_size + 1));
+            image_pixels.push(*pixel);
+        }
+    }
+
+    // Return the full grid
+    Grid::from_vec(image_size, image_size, image_pixels)
+}
+
+fn part2(tile_grid: &Grid<Tile>) {
+    let full_image = combine_tiles(tile_grid);
+    println!("{:?}", full_image);
 }
 
 fn main() {
-    part1("sample1.txt");  // 20899048083289
+    println!("SAMPLE:");
+    let sample1_grid = part1("sample1.txt");  // 20899048083289
+    part2(&sample1_grid);
+
+    println!("\nREAL:");
     part1("input.txt");  // 22878471088273
 }
