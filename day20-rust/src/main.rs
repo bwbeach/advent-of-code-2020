@@ -30,6 +30,15 @@ impl Edge {
             .sum();
         Edge { bits }
     }
+
+    fn from_iter(bytes: EdgeIterator<u8>) -> Edge {
+        let bits = bytes
+            .enumerate()
+            .filter(|&(_, &b)| b == b'#')
+            .map(|(i, _)| 1usize << i)
+            .sum();
+        Edge { bits }
+    }
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -50,7 +59,7 @@ impl std::fmt::Debug for Tile {
 }
 impl Tile {
     fn new(number: usize, pixels: Grid<u8>) -> Tile {
-        let top = Edge::new(&pixels.top_edge());
+        let top = Edge::from_iter(pixels.top_edge());
         let right = Edge::new(&pixels.right_edge());
         let bottom = Edge::new(&pixels.bottom_edge());
         let left = Edge::new(&pixels.left_edge());
@@ -224,10 +233,8 @@ impl<T: Clone> Grid<T> {
     }
 
     // The top edge
-    fn top_edge(&self) -> Vec<T> {
-        (0..self.size).into_iter()
-            .map(|i| self.get(GridPos::new(i, 0)).clone())
-            .collect()
+    fn top_edge<'a>(&'a self) -> EdgeIterator<'a, T> {
+        EdgeIterator::new(&self.items, self.size, 0, 1)
     }
 
     // The top edge
@@ -322,6 +329,28 @@ fn test_rotate_grid() {
     assert_eq!(*original.get(GridPos::new(2, 1)), 6);
     assert_eq!(original.rotate(), rotated);
     assert_eq!(original.flip(), flipped);
+}
+
+struct EdgeIterator<'a, T> {
+    range: std::ops::Range<usize>,
+    start: usize,
+    stride: usize,
+    items: &'a Vec<T>,
+}
+
+impl<'a, T> EdgeIterator<'a, T> {
+    fn new(items: &'a Vec<T>, count: usize, start: usize, stride: usize) -> EdgeIterator<'a, T> {
+        let range = 0..count;
+        EdgeIterator { range, start, stride, items }
+    }
+}
+
+impl<'a, T> Iterator for EdgeIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.range.next().map(|i| &self.items[self.start + i * self.stride])
+    }
 }
 
 fn solve_part1<'a, 'b>(choices: &'a Vec<&'a Tile>, grid: &'b mut Grid<Option<&'a Tile>>, used: &'b mut HashSet<usize>, pos: GridPos) {
