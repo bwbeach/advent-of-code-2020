@@ -510,9 +510,65 @@ fn combine_tiles(tile_grid: &Grid<Tile>) -> Grid<u8> {
     Grid::from_vec(image_size, image_size, image_pixels)
 }
 
+fn print_image(pixels: &Grid<u8>) {
+    for (i, item) in pixels.items.iter().enumerate() {
+        if i % pixels.width == 0 {
+            print!("\n");
+        }
+        let c: char = *item as char;
+        print!("{}", c);
+    }
+    print!("\n")
+}
+
+fn make_sea_monster() -> Grid<u8> {
+    let pixels = "                  # #    ##    ##    ### #  #  #  #  #  #   ".as_bytes();
+    Grid::from_vec(20, 3, pixels.to_vec())
+}
+
+fn image_matches(full_image: &Grid<u8>, sub_image: &Grid<u8>, dx: usize, dy: usize) -> bool {
+    for x in 0..sub_image.width {
+        for y in 0..sub_image.height {
+            if *sub_image.get(GridPos::new(x, y)) == b'#' {
+                if *full_image.get(GridPos::new(x + dx, y + dy)) != b'#' {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
+fn set_sub_image(full_image: &mut Grid<u8>, sub_image: &Grid<u8>, dx: usize, dy: usize) {
+    for x in 0..sub_image.width {
+        for y in 0..sub_image.height {
+            if *sub_image.get(GridPos::new(x, y)) == b'#' {
+                full_image.set(GridPos::new(x + dx, y + dy), b'O');
+            }
+        }
+    }
+}
+
 fn part2(tile_grid: &Grid<Tile>) {
     let full_image = combine_tiles(tile_grid);
-    println!("{:?}", full_image);
+    let sea_monster = make_sea_monster();
+
+    for mut grid in full_image.positions() {
+        let mut match_count = 0;
+        for x in 0..(full_image.width - sea_monster.width - 1) {
+            for y in 0..(full_image.height - sea_monster.height + 1) {
+                if image_matches(&grid, &sea_monster, x, y) {
+                    match_count += 1;
+                    set_sub_image(&mut grid, &sea_monster, x, y);
+                }
+            }
+        }
+        if match_count != 0 {
+            print_image(&grid);
+            let roughness = grid.items.iter().filter(|&&b| b == b'#').count();
+            println!("Part 2 (roughness): {:?}", roughness);
+        }
+    }
 }
 
 fn main() {
@@ -521,5 +577,6 @@ fn main() {
     part2(&sample1_grid);
 
     println!("\nREAL:");
-    part1("input.txt");  // 22878471088273
+    let real_grid = part1("input.txt");  // 22878471088273
+    part2(&real_grid);
 }
