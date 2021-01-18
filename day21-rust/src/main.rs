@@ -1,4 +1,5 @@
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
@@ -130,14 +131,27 @@ fn assign_allergens<'a>(labels: &'a [Label]) -> HashMap<String, String> {
 fn part1(labels: &[Label]) -> usize {
     let assignments = assign_allergens(&labels);
     labels.iter()
+        // labels
         .flat_map(|label| label.ingredients.iter())
+        // ingredients
         .filter(|&ingr| ! assignments.contains_key(ingr))
+        // ingredients that were assigned
         .count()
+}
+
+fn part2(labels: &[Label]) -> String {
+    let mut ingredients_and_allergens: Vec<_> = assign_allergens(&labels).into_iter().collect();
+    ingredients_and_allergens.sort_by( |p1, p2| p1.1.cmp(&p2.1) );
+    let answer: String = ingredients_and_allergens.iter().map(|(ingr, _)| ingr.as_str()).intersperse(",").collect();
+    answer
 }
 
 fn main() {
     let sample = parse_input("sample.txt");
     println!("Sample part 1: {:?}", part1(&sample));
+    println!("Sample part 2: {:?}", part2(&sample));
+
     let input = parse_input("input.txt");
     println!("Part 1: {:?}", part1(&input));  // 1882
+    println!("Part 2: {:?}", part2(&input));  // xgtj,ztdctgq,bdnrnx,cdvjp,jdggtft,mdbq,rmd,lgllb
 }
