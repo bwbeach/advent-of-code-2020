@@ -1,4 +1,5 @@
 
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fs::read_to_string;
 
@@ -9,7 +10,7 @@ type Card = usize;
 type Deck = VecDeque<Card>;
 
 /// The names of the two players
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 enum Player {
     Player1,
     Player2,
@@ -18,7 +19,7 @@ enum Player {
 use crate::Player::*;
 
 /// The state of a game is the two decks
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Game(Deck, Deck);
 
 impl Game {
@@ -83,6 +84,61 @@ fn play_game(init: &Game) -> Game {
     Game(a, b)
 }
 
+/// Plays a recursive game, returning the state when the game is done
+/// 
+/// Modifies the game state passed as the game progresses, resulting
+/// in the final game state.  Returns the winner
+fn play_recursive_game(game: &mut Game) -> Player {
+    // all of the states we've seen so far
+    let mut history: HashSet<Game> = HashSet::new();
+
+    // play until done
+    while ! game.0.is_empty() && ! game.1.is_empty()  {
+        // first rule: if we've seen this state before, player 1 wins
+        if history.contains(&game) {
+            return Player1;
+        }
+        history.insert(game.clone());
+
+        // draw the top cards
+        let card1 = game.0.pop_front().unwrap();
+        let card2 = game.1.pop_front().unwrap();
+
+        // determine the winner
+        let winner = 
+            if card1 <= game.0.len() && card2 <= game.1.len() {
+                // there are enough cards to play a recursive game
+                let mut inner_game = Game(
+                    game.0.iter().take(card1).map(|&c| c).collect(),
+                    game.1.iter().take(card2).map(|&c| c).collect()
+                );
+                play_recursive_game(&mut inner_game)
+            } else {
+                // not enaugh cards; use original rules
+                assert!(card1 != card2);
+                if card1 < card2 {
+                    Player2
+                } else {
+                    Player1
+                }
+            };
+
+        // put the cards in place
+        match winner {
+            Player1 => { game.0.push_back(card1); game.0.push_back(card2); },
+            Player2 => { game.1.push_back(card2); game.1.push_back(card1); },
+        }
+    }
+
+    game.winner()
+}
+
+#[test]
+fn test_infinite() {
+    let mut game = read_input("infinite.txt");
+    assert_eq!(play_recursive_game(&mut game), Player1);
+}
+
 /// Returns the score to report for a winning deck.
 fn score_winner(deck: &Deck) -> usize {
     let mut result = 0;
@@ -94,6 +150,18 @@ fn score_winner(deck: &Deck) -> usize {
     result
 }
 
+fn run_part2(label: &str, file_name: &str) {
+    let mut game = read_input(file_name);
+    let winner = play_recursive_game(&mut game);
+    let winning_deck =
+        match winner {
+            Player1 => &game.0,
+            Player2 => &game.1,
+        };
+    let score = score_winner(winning_deck);
+    println!("{}: {:?}", label, score);
+}
+
 fn main() {
     let sample = read_input("sample.txt");
     let finished_sample = play_game(&sample);
@@ -103,4 +171,6 @@ fn main() {
     let input = read_input("input.txt");
     println!("Part 1: {:?}", score_winner(play_game(&input).winning_deck()));  // 35370
 
+    run_part2("Part 2 sample", "sample.txt");
+    run_part2("Part 2", "input.txt");  // 36246
 }
