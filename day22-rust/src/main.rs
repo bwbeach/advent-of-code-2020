@@ -51,13 +51,13 @@ fn play_game(init_a: &Deck, init_b: &Deck) -> Deck {
     }
 }
 
+/// Returns the score to report for a winning deck.
 fn score_winner(deck: &Deck) -> usize {
-    let mut copy = deck.clone();
     let mut result = 0;
-    let mut counter = 1;
-    while let Some(card) = copy.pop_back() {
-        result += counter * card;
-        counter += 1
+    let mut multiplier = deck.len();
+    for card in deck {
+        result += multiplier * card;
+        multiplier -= 1
     }
     result
 }
