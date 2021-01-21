@@ -31,8 +31,13 @@ impl<T: Copy + Debug + Eq + Hash> Ring<T> {
         Ring { right: HashMap::new(), left: HashMap::new(), current: None }
     }
 
-    fn from_vec(v: &Vec<T>) -> Ring<T> {
-        v.iter().map(|&x| x).collect()
+    // fn from_vec(v: &Vec<T>) -> Ring<T> {
+    //     v.iter().map(|&x| x).collect()
+    // }
+
+    // Does the ring contain this value?
+    fn contains(&self, item: T) -> bool {
+        self.right.contains_key(&item)
     }
 
     // Adds a new item in the ring, just before the current item.
@@ -162,6 +167,17 @@ fn ring_from_str(s: &str) -> Ring<usize> {
     s.chars().map(|c| c.to_digit(10)).map(|n| n.unwrap() as usize).collect()
 }
 
+fn pick_destination(ring: &Ring<usize>) -> usize {
+    let mut candidate = ring.current.unwrap() - 1;
+    while 0 < candidate {
+        if ring.contains(candidate) {
+            return candidate;
+        }
+        candidate -= 1;
+    }
+    ring.iter().max().unwrap()
+}
+
 fn one_step(ring: &mut Ring<usize>) {
     // what's the current cup?
     let current = ring.current.unwrap();
@@ -172,13 +188,7 @@ fn one_step(ring: &mut Ring<usize>) {
     let c = ring.remove_right(current);
 
     // pick the destination cup
-    let below = ring.iter().filter(|&n| n < current).max();
-    let destination = 
-        if let Some(n) = below {
-            n
-        } else {
-            ring.iter().max().unwrap()
-        };
+    let destination = pick_destination(&ring);
 
     // add the three cups picked up after the destination
     ring.add_right(c, destination);
