@@ -213,6 +213,19 @@ fn run_part1(start: &Ring<usize>) -> String {
     cups_after_one(&work)
 }
 
+fn run_part2(start: &Ring<usize>) -> usize {
+    let mut work = start.clone();
+    for n in 10..=1000000 {
+        work.add(n);
+    }
+    for _ in 0..10000000 {
+        one_step(&mut work);
+    }
+    let a = work.remove_right(1);
+    let b = work.remove_right(1);
+    a * b
+}
+
 fn main() {
     let sample = ring_from_str("389125467");
     assert_eq!(run_part1(&sample), "67384529");
@@ -220,5 +233,8 @@ fn main() {
     let input = ring_from_str("952438716");
     let part1_answer = run_part1(&input);
     assert_eq!(part1_answer, "97342568");
-    println!("Part 1: {:?}", run_part1(&input));
+    println!("Part 1: {:?}", part1_answer);
+
+    let part2_answer = run_part2(&input);
+    println!("Part 2: {:?}", part2_answer);
 }
