@@ -6,6 +6,8 @@ use std::iter;
 use std::fs;
 use std::ops;
 
+mod conway;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Pos {
     x: i32,
@@ -80,7 +82,7 @@ fn test_parse_directions() {
     assert_eq!(parse_directions("nwwswee"), pos(0, 0));
 }
 
-fn run_part1(file_name: &str) -> usize {
+fn tiles_from_part1(file_name: &str) -> collections::HashSet<Pos> {
     let text = fs::read_to_string(file_name).unwrap();
     let mut black_tiles: collections::HashSet<Pos> = collections::HashSet::new();
     for line in text.split("\n") {
@@ -93,11 +95,30 @@ fn run_part1(file_name: &str) -> usize {
             }
         }
     }
-    black_tiles.len()
+    black_tiles
+}
+
+fn run_part1(file_name: &str) -> usize {
+    tiles_from_part1(file_name).len()
+}
+
+fn is_alive_part2(was_alive: bool, neighbor_count: usize) -> bool {
+    return neighbor_count == 2 || (was_alive && neighbor_count == 1)
+}
+
+fn run_part2(file_name: &str) -> usize {
+    let neighbors: Vec<_> = make_dir_to_pos().iter().map(|(_, p)| *p).collect();
+    let mut tiles = tiles_from_part1(file_name);
+    for _ in 1..=100 {
+        tiles = conway::conway_step(&tiles, neighbors.as_slice(), is_alive_part2);
+    }
+    tiles.len()
 }
 
 fn main() {
     println!("Part 1 sample: {:?}", run_part1("sample.txt"));
+    println!("Part 2 sample: {:?}", run_part2("sample.txt"));
     println!("Part 1: {:?}", run_part1("input.txt"));
+    println!("Part 2: {:?}", run_part2("input.txt"));
 
 }
