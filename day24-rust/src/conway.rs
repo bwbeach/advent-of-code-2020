@@ -17,15 +17,15 @@ use std::ops;
 /// 
 /// Returns a map from cell to live neigbor count.  Only cells
 /// with non-zero counts are included in the set.
-fn count_live_neighbors<T: ops::Add<Output = T> + Clone + Eq + hash::Hash>(
+fn count_live_neighbors<T: ops::Add<Output = T> + Copy + Eq + hash::Hash>(
     before: &collections::HashSet<T>,
     neighbor_deltas: &[T]
 ) -> collections::HashMap<T, usize> 
 {
     let mut result: collections::HashMap<T, usize> = collections::HashMap::new();
-    for c in before.iter() {
-        for d in neighbor_deltas.iter() {
-            let neighbor = c.clone() + d.clone();
+    for &c in before.iter() {
+        for &d in neighbor_deltas.iter() {
+            let neighbor = c + d;
             let old_count = result.get(&neighbor).map(|&n| n).unwrap_or(0);
             result.insert(neighbor, old_count + 1);
         }
@@ -36,7 +36,7 @@ fn count_live_neighbors<T: ops::Add<Output = T> + Clone + Eq + hash::Hash>(
 /// Runs one step in Life.
 /// 
 /// Input is the board before, and output is the board after.
-pub fn conway_step<T: ops::Add<Output = T> + Clone + Eq + hash::Hash>(
+pub fn conway_step<T: ops::Add<Output = T> + Copy + Eq + hash::Hash>(
     before: &collections::HashSet<T>,
     neighbor_deltas: &[T],
     is_alive: fn(bool, usize) -> bool
