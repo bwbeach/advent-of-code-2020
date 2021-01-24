@@ -7,7 +7,7 @@ use std::iter::FromIterator;
 
 /// A circle of things.
 /// 
-/// This implementation keeps four copies of each thing,
+/// This implementation keeps two copies of each thing,
 /// and expects the things to have the Copy trait.
 /// 
 #[derive(Clone)]
@@ -17,10 +17,6 @@ struct Ring<T: Copy + Debug + Eq + Hash> {
     // Always exactly one entry for each thing in the ring.
     right: HashMap<T, T>,
 
-    // Map from one item t othe thing on its left.
-    // Always exactly one entry for each thing in the ring.
-    left: HashMap<T, T>,
-
     // The currently selected item, or None if there's nothing in the Ring.
     current: Option<T>,
 }
@@ -28,12 +24,8 @@ struct Ring<T: Copy + Debug + Eq + Hash> {
 impl<T: Copy + Debug + Eq + Hash> Ring<T> {
 
     fn new() -> Ring<T> {
-        Ring { right: HashMap::new(), left: HashMap::new(), current: None }
+        Ring { right: HashMap::new(), current: None }
     }
-
-    // fn from_vec(v: &Vec<T>) -> Ring<T> {
-    //     v.iter().map(|&x| x).collect()
-    // }
 
     // Does the ring contain this value?
     fn contains(&self, item: T) -> bool {
@@ -45,7 +37,6 @@ impl<T: Copy + Debug + Eq + Hash> Ring<T> {
     fn add_first(&mut self, item: T) {
         assert!(self.current == None);
         self.right.insert(item, item);
-        self.left.insert(item, item);
         self.current = Some(item);
     }
 
@@ -54,25 +45,14 @@ impl<T: Copy + Debug + Eq + Hash> Ring<T> {
         let neighbor = *self.right.get(&reference).unwrap();
         self.right.insert(reference, item);
         self.right.insert(item, neighbor);
-        self.left.insert(neighbor, item);
-        self.left.insert(item, reference);
-    }
-
-    // Removes the given item from the ring
-    fn remove(&mut self, item: T) {
-        let left = *self.left.get(&item).unwrap();
-        let right = *self.right.get(&item).unwrap();
-        assert_ne!(left, item);
-        self.left.insert(right, left);
-        self.left.remove(&item);
-        self.right.insert(left, right);
-        self.right.remove(&item);
     }
 
     // Removes the item to the right of the given item, and returns it.
     fn remove_right(&mut self, item: T) -> T {
         let right = *self.right.get(&item).unwrap();
-        self.remove(right);
+        let right_right = *self.right.get(&right).unwrap();
+        self.right.insert(item, right_right);
+        self.right.remove(&right);
         right
     }
 
@@ -102,18 +82,18 @@ impl<T: Copy + Debug + Eq + Hash> Ring<T> {
 
 impl<T: Copy + Debug + Eq + Hash> FromIterator<T> for Ring<T> {
     fn from_iter<I: IntoIterator<Item=T>>(into_iterator: I) -> Self {
-        let mut c = Ring::new();
+        let mut ring = Ring::new();
         let mut iter = into_iterator.into_iter();
         if let Some(first) = iter.next() {
-            c.add_first(first);
+            ring.add_first(first);
             let mut prev = first;
             for item in iter {
-                c.add_right(item, prev);
+                ring.add_right(item, prev);
                 prev = item;
             }
         }
 
-        c
+        ring
     }
 }
 
