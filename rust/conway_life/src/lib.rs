@@ -1,3 +1,10 @@
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
+}
 
 /// Generalized implementation of Conway's Game of Life.
 /// 

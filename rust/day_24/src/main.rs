@@ -6,7 +6,7 @@ use std::iter;
 use std::fs;
 use std::ops;
 
-mod conway;
+use conway_life;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Pos {
@@ -110,15 +110,14 @@ fn run_part2(file_name: &str) -> usize {
     let neighbors: Vec<_> = make_dir_to_pos().iter().map(|(_, p)| *p).collect();
     let mut tiles = tiles_from_part1(file_name);
     for _ in 1..=100 {
-        tiles = conway::conway_step(&tiles, neighbors.as_slice(), is_alive_part2);
+        tiles = conway_life::conway_step(&tiles, neighbors.as_slice(), is_alive_part2);
     }
     tiles.len()
 }
 
 fn main() {
-    println!("Part 1 sample: {:?}", run_part1("sample.txt"));
-    println!("Part 2 sample: {:?}", run_part2("sample.txt"));
-    println!("Part 1: {:?}", run_part1("input.txt"));
-    println!("Part 2: {:?}", run_part2("input.txt"));
-
+    println!("Part 1 sample: {:?}", run_part1("input/day24-sample.txt"));
+    println!("Part 2 sample: {:?}", run_part2("input/day24-sample.txt"));
+    println!("Part 1: {:?}", run_part1("input/day24-input.txt"));
+    println!("Part 2: {:?}", run_part2("input/day24-input.txt"));
 }
