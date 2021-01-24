@@ -232,9 +232,10 @@ fn main() {
     
     let input = ring_from_str("952438716");
     let part1_answer = run_part1(&input);
-    assert_eq!(part1_answer, "97342568");
+    assert_eq!(part1_answer, "97342568");  // verified on web site
     println!("Part 1: {:?}", part1_answer);
 
     let part2_answer = run_part2(&input);
+    assert_eq!(part2_answer, 902208073192);  // verified on web site
     println!("Part 2: {:?}", part2_answer);
 }
