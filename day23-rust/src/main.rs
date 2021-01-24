@@ -40,23 +40,13 @@ impl<T: Copy + Debug + Eq + Hash> Ring<T> {
         self.right.contains_key(&item)
     }
 
-    // Adds a new item in the ring, just before the current item.
-    fn add(&mut self, item: T) {
-        match self.current {
-            None => {
-                self.right.insert(item, item);
-                self.left.insert(item, item);
-                self.current = Some(item);
-            },
-            Some(current) => {
-                self.add_left(item, current)
-            },
-        }
-    }
-
-    // Adds a new item to the left of the given item
-    fn add_left(&mut self, item: T, reference: T) {
-        self.add_right(item, *self.left.get(&reference).unwrap())
+    // Adds the first item to the ring, which becomes
+    // the current item.
+    fn add_first(&mut self, item: T) {
+        assert!(self.current == None);
+        self.right.insert(item, item);
+        self.left.insert(item, item);
+        self.current = Some(item);
     }
 
     // Adds a new item t othe right of the given item
@@ -111,11 +101,16 @@ impl<T: Copy + Debug + Eq + Hash> Ring<T> {
 }
 
 impl<T: Copy + Debug + Eq + Hash> FromIterator<T> for Ring<T> {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=T>>(into_iterator: I) -> Self {
         let mut c = Ring::new();
-
-        for i in iter {
-            c.add(i);
+        let mut iter = into_iterator.into_iter();
+        if let Some(first) = iter.next() {
+            c.add_first(first);
+            let mut prev = first;
+            for item in iter {
+                c.add_right(item, prev);
+                prev = item;
+            }
         }
 
         c
@@ -214,10 +209,10 @@ fn run_part1(start: &Ring<usize>) -> String {
 }
 
 fn run_part2(start: &Ring<usize>) -> usize {
-    let mut work = start.clone();
-    for n in 10..=1000000 {
-        work.add(n);
-    }
+    let mut work = 
+        start.iter()
+            .chain(10..=1000000)
+            .collect();
     for _ in 0..10000000 {
         one_step(&mut work);
     }
