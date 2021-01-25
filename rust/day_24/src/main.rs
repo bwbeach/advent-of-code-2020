@@ -14,12 +14,6 @@ struct Pos {
     y: i32,
 }
 
-impl Pos {
-    fn new(x: i32, y: i32) -> Pos {
-        Pos { x, y }
-    }
-}
-
 fn pos(x: i32, y: i32) -> Pos {
     Pos { x, y }
 }
@@ -28,7 +22,7 @@ impl ops::Add for Pos {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        Pos::new(self.x + other.x, self.y + other.y)
+        pos(self.x + other.x, self.y + other.y)
     }
 }
 
@@ -36,11 +30,7 @@ impl iter::Sum for Pos {
     fn sum<I>(iter: I) -> Self 
         where I: Iterator<Item = Pos>
     {
-        let mut result = pos(0, 0);
-        for p in iter {
-            result = result + p;
-        }
-        result
+        iter.fold(pos(0, 0), |a, b| a + b)
     }
 }
 
@@ -61,20 +51,52 @@ fn make_dir_to_pos() -> collections::HashMap<String, Pos> {
     result
 }
 
+/// Structure backing `repeated_regex`
+struct RepeatedRegex<'a> {
+    /// The pattern to keep matching in the string
+    pattern: &'a regex::Regex,
+    /// The remaining string to match.  After the first
+    /// match, this is the part of the string after the 
+    /// previous match.
+    remaining: &'a str,
+}
+
+/// Iterator backing `repeated_regex`.
+/// 
+/// The `next()` function finds the next match of the pattern
+/// in the remaining string.
+impl<'a> Iterator for RepeatedRegex<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        if self.remaining.len() == 0 {
+            None
+        } else {
+            let cap = self.pattern.captures(self.remaining).unwrap();
+            let whole_match = cap.get(0).unwrap();
+            self.remaining = & self.remaining[whole_match.end()..];
+            Some(& whole_match.as_str())
+        }
+    }
+}
+
+/// Returns an iteraror of the strings that match the given pattern
+/// in a haystack.  If the pattern starts with `^`, the result is guaranteed
+/// to cover every character of the haystack.
+/// 
+/// No proper error checking (yet).  Panics if the pattern is not found in the haystack.
+fn repeated_regex<'a>(pattern: &'a regex::Regex, haystack: &'a str) -> RepeatedRegex<'a> {
+    RepeatedRegex { pattern: pattern, remaining: haystack, }
+}
+
 fn parse_directions(directions: &str) -> Pos {
     lazy_static::lazy_static! {
         static ref PATTERN: regex::Regex = regex::Regex::new(r"^[ns]?[ew]").unwrap();
     }
     let dir_to_pos = make_dir_to_pos();
-    let mut remaining = directions;
-    let mut result = pos(0, 0);
-    while 0 < remaining.len() {
-        let caps = PATTERN.captures(remaining).unwrap();
-        let dir = &caps[0];
-        result = result + *dir_to_pos.get(dir).unwrap();
-        remaining = &remaining[dir.len()..];
-    }
-    result
+    repeated_regex(&PATTERN, directions)
+        .map(|dir| *dir_to_pos.get(dir).unwrap())
+        .sum()
 }
 
 #[test]
