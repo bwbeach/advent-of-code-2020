@@ -13,9 +13,13 @@ defmodule ElixirAdvent do
 
   """
   def run_day(day_number) do
-    with runner = get_runner(day_number) do
-      Path.wildcard("samples/day#{day_number}_*")
-      |> Enum.each(&run_file(&1, runner))
+    case Path.wildcard("samples/day#{day_number}_*") do
+      [] ->
+        IO.puts("no input files")
+      paths ->
+        with runner = get_runner(day_number) do
+          Enum.each(paths, &run_file(&1, runner))
+        end
     end
   end
 
