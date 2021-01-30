@@ -1,9 +1,9 @@
 defmodule Day1 do
   @moduledoc """
-  Finds two numbers that sum to 2020 and prints their product.
+  Finds two numbers that sum to 2020 and returns their product.
   """
 
-  def run(_file_name, lines) do
+  def run(lines) do
     with numbers =
            lines
            |> Enum.map(&String.trim/1)
@@ -20,7 +20,7 @@ defmodule Day1 do
   def find_answer([head | tail]) do
     case find_answer_with(head, tail) do
       {:ok, product} ->
-        { :ok, product }
+        {:ok, product}
 
       {:no_answer, _} ->
         find_answer(tail)
@@ -29,7 +29,7 @@ defmodule Day1 do
 
   def find_answer_with(first, [head | tail]) do
     if first + head == 2020 do
-      { :ok, first * head }
+      {:ok, first * head}
     else
       find_answer_with(first, tail)
     end

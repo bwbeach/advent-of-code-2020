@@ -5,7 +5,10 @@ defmodule ElixirAdvent.CLI do
   """
 
   def run(argv) do
-    IO.puts(Day1.run("samples/day1_sample.txt", File.stream!("samples/day1_sample.txt")))
+    with [day_str] = argv,
+         day_number = String.to_integer(day_str) do
+      IO.puts(ElixirAdvent.run_day(day_number))
+    end
   end
 
   def run_argv() do
