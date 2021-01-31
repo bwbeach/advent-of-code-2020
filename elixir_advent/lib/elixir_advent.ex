@@ -8,8 +8,8 @@ defmodule ElixirAdvent do
 
   ## Examples
 
-      iex> ElixirAdvent.hello()
-      :world
+      iex> ElixirAdvent.day_not_implemented("")
+      "day not implemented"
 
   """
   def run_day(day_number) do
@@ -30,9 +30,11 @@ defmodule ElixirAdvent do
     |> print_result(file_path)
   end
 
+  @spec get_runner(integer) :: ([String] -> String)
   def get_runner(day_number) do
     case day_number do
       1 -> &Day1.run/1
+      2 -> &Day2.run/1
       _ -> &day_not_implemented/1
     end
   end
