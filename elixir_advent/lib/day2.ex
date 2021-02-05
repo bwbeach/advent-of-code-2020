@@ -1,5 +1,4 @@
 defmodule Day2 do
-
   @input_pattern ~r{([0-9]+)-([0-9]+) ([a-z]): (.*)}
 
   def run(lines) do
@@ -34,11 +33,10 @@ defmodule Day2 do
   end
 
   def parse_line(line) do
-      with [_, n1_str, n2_str, c, word] = Regex.run(@input_pattern, line),
-           n1 = String.to_integer(n1_str),
-           n2 = String.to_integer(n2_str) do
-        { n1, n2, c, word }
-      end
+    with [_, n1_str, n2_str, c, word] = Regex.run(@input_pattern, line),
+         n1 = String.to_integer(n1_str),
+         n2 = String.to_integer(n2_str) do
+      {n1, n2, c, word}
+    end
   end
-
 end

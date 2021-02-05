@@ -3,11 +3,11 @@ defmodule Day2Test do
   doctest Day2
 
   test "parse input line" do
-    assert Day2.parse_line("1-3 b: cdefg") == { 1, 3, "b", "cdefg" }
+    assert Day2.parse_line("1-3 b: cdefg") == {1, 3, "b", "cdefg"}
   end
 
   test "parse input line with multi-digit numbers" do
-    assert Day2.parse_line("11-33 b: cdefg") == { 11, 33, "b", "cdefg" }
+    assert Day2.parse_line("11-33 b: cdefg") == {11, 33, "b", "cdefg"}
   end
 
   test "count chars in string" do

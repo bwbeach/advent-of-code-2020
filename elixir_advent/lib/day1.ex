@@ -40,5 +40,4 @@ defmodule Day1 do
   def product(numbers) do
     Enum.reduce(numbers, &(&1 * &2))
   end
-
 end
