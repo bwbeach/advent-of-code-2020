@@ -1,5 +1,11 @@
 # ElixirAdvent
 
+To run from command line with mix:
+
+```
+mix run -e "ElixirAdvent.CLI.run_argv()" 4
+```
+
 **TODO: Add description**
 
 ## Installation
