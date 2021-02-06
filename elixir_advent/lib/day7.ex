@@ -71,16 +71,14 @@ defmodule Day7 do
 
   @spec parse_rhs(String.t()) :: [{integer, String.t()}]
   def parse_rhs(rhs) do
-    case Regex.run(~r{no other bag}, rhs) do
-      nil ->
-        for item <- String.split(rhs, ", ") do
-          with [_, count_str, color] = Regex.run(~r{([0-9]+) (.*) bag}, item) do
-            {String.to_integer(count_str), color}
-          end
+    if String.contains?(rhs, "no other bag") do
+      []
+    else
+      for item <- String.split(rhs, ", ") do
+        with [_, count_str, color] = Regex.run(~r{([0-9]+) (.*) bag}, item) do
+          {String.to_integer(count_str), color}
         end
-
-      _ ->
-        []
+      end
     end
   end
 end
