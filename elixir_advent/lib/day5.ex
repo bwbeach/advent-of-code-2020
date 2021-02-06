@@ -1,10 +1,10 @@
 defmodule Day5 do
-
   def run(lines) do
     with [p2] = part2(lines) do
       "part1: #{part1(lines)}   part2: #{p2}"
     end
   end
+
   def part1(lines) do
     lines
     |> Enum.map(&parse_seat/1)
@@ -15,7 +15,7 @@ defmodule Day5 do
     with seats = seat_set(lines) do
       for s <- seats,
           MapSet.member?(seats, s + 2),
-          ! MapSet.member?(seats, s + 1) do
+          !MapSet.member?(seats, s + 1) do
         s + 1
       end
     end
