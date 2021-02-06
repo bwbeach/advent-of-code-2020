@@ -31,15 +31,16 @@ defmodule Day7 do
   end
 
   def can_contain(outer_color, inner_color, rules) do
-    with contents = rules[outer_color] do
-      Enum.any?(
-        contents,
-        fn {_, content_color} ->
-          content_color == inner_color or
-            can_contain(content_color, inner_color, rules)
-        end
-      )
+    # Can one rule item contain the color, either
+    # by specifying that color directly, or by
+    # specifying a color that contains it?
+    rule_item_can_contain_it = fn {_, content_color} ->
+      content_color == inner_color or
+      can_contain(content_color, inner_color, rules)
     end
+
+    rules[outer_color]
+    |> Enum.any?(rule_item_can_contain_it)
   end
 
   @spec parse_rules([String.t()]) :: %{String.t() => [{integer, String.t()}]}
