@@ -32,6 +32,7 @@ defmodule ElixirAdvent do
       4 -> &Day4.run/1
       5 -> &Day5.run/1
       6 -> &Day6.run/1
+      7 -> &Day7.run/1
       _ -> &day_not_implemented/1
     end
   end

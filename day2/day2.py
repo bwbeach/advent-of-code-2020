@@ -1,11 +1,11 @@
-
 import re
+
 
 class PasswordEntry:
 
     line_pattern = re.compile(r"^(\d+)-(\d+) (.): (.*)")
 
-    def __init__(self, line:str) -> None:
+    def __init__(self, line: str) -> None:
         match = self.line_pattern.match(line)
         assert match
         self.first_count = int(match.group(1))
@@ -24,23 +24,7 @@ class PasswordEntry:
 
 
 with open("input.txt") as f:
-    print(
-        "First answer:",
-        sum(
-            1
-            for line in f
-            if PasswordEntry(line).is_valid_1()
-        )
-    )
+    print("First answer:", sum(1 for line in f if PasswordEntry(line).is_valid_1()))
 
 with open("input.txt") as f:
-    print(
-        "Second answer:",
-        sum(
-            1
-            for line in f
-            if PasswordEntry(line).is_valid_2()
-        )
-    )
-
-
+    print("Second answer:", sum(1 for line in f if PasswordEntry(line).is_valid_2()))
